@@ -11,4 +11,8 @@ public sealed class WcfOperationModel
     public string ResponseTypeName { get; init; } = "void";
 
     public IReadOnlyList<WcfParameterModel> Parameters { get; init; } = [];
+
+    public string DocumentationText { get; init; } = string.Empty;
+
+    public IReadOnlyList<WcfFaultContractModel> FaultContracts { get; init; } = [];
 }

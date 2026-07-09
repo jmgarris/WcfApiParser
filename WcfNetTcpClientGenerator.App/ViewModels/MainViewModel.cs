@@ -17,6 +17,7 @@ public partial class MainViewModel : ObservableObject
     private readonly object _statusMessagesGate = new();
 
     private string? _generatedProjectFilePath;
+    private bool _regenerateCommentsRequested;
 
     public MainViewModel(
         IFolderPickerService folderPickerService,
@@ -34,6 +35,10 @@ public partial class MainViewModel : ObservableObject
         BrowseOutputFolderCommand = new AsyncRelayCommand(BrowseOutputFolderAsync);
         BrowseDotNetSvcUtilPathCommand = new AsyncRelayCommand(BrowseDotNetSvcUtilPathAsync);
         TestDotNetSvcUtilCommand = new AsyncRelayCommand(TestDotNetSvcUtilAsync);
+        SignInToCopilotCommand = new AsyncRelayCommand(SignInToCopilotAsync);
+        SignOutOfCopilotCommand = new AsyncRelayCommand(SignOutOfCopilotAsync);
+        TestCopilotConnectionCommand = new AsyncRelayCommand(TestCopilotConnectionAsync);
+        RegenerateCommentsCommand = new RelayCommand(RequestCommentRegeneration);
         ClearStatusCommand = new RelayCommand(ClearStatus);
     }
 
@@ -68,6 +73,14 @@ public partial class MainViewModel : ObservableObject
     public IAsyncRelayCommand BrowseDotNetSvcUtilPathCommand { get; }
 
     public IAsyncRelayCommand TestDotNetSvcUtilCommand { get; }
+
+    public IAsyncRelayCommand SignInToCopilotCommand { get; }
+
+    public IAsyncRelayCommand SignOutOfCopilotCommand { get; }
+
+    public IAsyncRelayCommand TestCopilotConnectionCommand { get; }
+
+    public IRelayCommand RegenerateCommentsCommand { get; }
 
     public IRelayCommand ClearStatusCommand { get; }
 
@@ -133,6 +146,42 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private int progressPercentage;
+
+    [ObservableProperty]
+    private bool enableCopilotComments;
+
+    [ObservableProperty]
+    private string copilotTenantId = string.Empty;
+
+    [ObservableProperty]
+    private string copilotClientId = string.Empty;
+
+    [ObservableProperty]
+    private string copilotRequiredScopes = "Sites.Read.All, Mail.Read, People.Read.All, OnlineMeetingTranscript.Read.All, Chat.Read, ChannelMessage.Read.All, ExternalItem.Read.All";
+
+    [ObservableProperty]
+    private bool copilotUseInteractiveSignIn = true;
+
+    [ObservableProperty]
+    private bool copilotDisableWebGrounding;
+
+    [ObservableProperty]
+    private bool cacheGeneratedComments = true;
+
+    [ObservableProperty]
+    private string copilotMaxCommentLength = "600";
+
+    [ObservableProperty]
+    private string copilotTimeoutSeconds = "30";
+
+    [ObservableProperty]
+    private string copilotRetryCount = "2";
+
+    [ObservableProperty]
+    private string copilotStatusText = "Copilot comments are disabled.";
+
+    [ObservableProperty]
+    private string signedInAccount = string.Empty;
 
     private async Task BrowseOutputFolderAsync()
     {
@@ -208,6 +257,7 @@ public partial class MainViewModel : ObservableObject
 
         var result = await _workflowService.GenerateAsync(BuildGenerationOptions(), CancellationToken.None);
         PopulateFromGenerationResult(result);
+        _regenerateCommentsRequested = false;
 
         ProgressPercentage = 0;
         BusyMessage = string.Empty;
@@ -240,6 +290,50 @@ public partial class MainViewModel : ObservableObject
         UpdateStatusMessages(static statusMessages => statusMessages.Clear());
     }
 
+    private async Task SignInToCopilotAsync()
+    {
+        BusyMessage = "Signing in to Microsoft 365...";
+        ProgressPercentage = 15;
+        AddStatus("Info", "Starting Microsoft 365 sign-in.");
+
+        var result = await _workflowService.SignInToCopilotAsync(BuildCopilotChatOptions(), CancellationToken.None);
+        ApplyCopilotConnectionResult(result);
+
+        ProgressPercentage = 0;
+        BusyMessage = string.Empty;
+    }
+
+    private async Task SignOutOfCopilotAsync()
+    {
+        BusyMessage = "Signing out of Microsoft 365...";
+        ProgressPercentage = 10;
+
+        var result = await _workflowService.SignOutOfCopilotAsync(CancellationToken.None);
+        ApplyCopilotConnectionResult(result);
+
+        ProgressPercentage = 0;
+        BusyMessage = string.Empty;
+    }
+
+    private async Task TestCopilotConnectionAsync()
+    {
+        BusyMessage = "Testing Copilot connection...";
+        ProgressPercentage = 20;
+        AddStatus("Info", "Testing Microsoft 365 Copilot connectivity.");
+
+        var result = await _workflowService.TestCopilotConnectionAsync(BuildCopilotChatOptions(), CancellationToken.None);
+        ApplyCopilotConnectionResult(result);
+
+        ProgressPercentage = 0;
+        BusyMessage = string.Empty;
+    }
+
+    private void RequestCommentRegeneration()
+    {
+        _regenerateCommentsRequested = true;
+        AddStatus("Info", "The next generation run will bypass the documentation cache and regenerate Copilot comments.");
+    }
+
     private WcfMetadataDiscoveryOptions BuildDiscoveryOptions()
         => new()
         {
@@ -267,7 +361,34 @@ public partial class MainViewModel : ObservableObject
             ReceiveTimeout = ReceiveTimeout,
             MaxReceivedMessageSize = MaxReceivedMessageSize,
             Username = Username,
-            Password = Password
+            Password = Password,
+            DocumentationOptions = BuildMethodDocumentationOptions(),
+            ProgressReporter = new Progress<GenerationDiagnostic>(diagnostic => AddStatus(diagnostic.Severity.ToString(), diagnostic.Message))
+        };
+
+    private MethodDocumentationOptions BuildMethodDocumentationOptions()
+        => new()
+        {
+            EnableCopilotComments = EnableCopilotComments,
+            CopilotChat = BuildCopilotChatOptions(),
+            CacheGeneratedComments = CacheGeneratedComments,
+            RegenerateComments = _regenerateCommentsRequested,
+            MaxCommentLength = ParsePositiveInt(CopilotMaxCommentLength, 600),
+            Timeout = TimeSpan.FromSeconds(ParsePositiveInt(CopilotTimeoutSeconds, 30)),
+            RetryCount = ParseNonNegativeInt(CopilotRetryCount, 2)
+        };
+
+    private CopilotChatOptions BuildCopilotChatOptions()
+        => new()
+        {
+            TenantId = CopilotTenantId,
+            ClientId = CopilotClientId,
+            RequiredScopes = CopilotRequiredScopes
+                .Split([',', ';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            UseInteractiveSignIn = CopilotUseInteractiveSignIn,
+            DisableWebGrounding = CopilotDisableWebGrounding
         };
 
     private void PopulateFromMetadataResult(MetadataReadResult result)
@@ -314,6 +435,27 @@ public partial class MainViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(result.PackagePath))
         {
             AddStatus("Info", $"NuGet package created at {result.PackagePath}");
+        }
+    }
+
+    private void ApplyCopilotConnectionResult(CopilotConnectionTestResult result)
+    {
+        CopilotStatusText = result.StatusText;
+        SignedInAccount = result.AccountName;
+
+        foreach (var diagnostic in result.Diagnostics)
+        {
+            AddStatus(diagnostic.Severity, diagnostic.Message);
+        }
+
+        if (string.IsNullOrWhiteSpace(result.AccountName) && result.Success && result.StatusText.Contains("Signed out", StringComparison.OrdinalIgnoreCase))
+        {
+            SignedInAccount = string.Empty;
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.StatusText))
+        {
+            AddStatus(result.Success ? "Info" : "Warning", result.StatusText);
         }
     }
 
@@ -364,4 +506,14 @@ public partial class MainViewModel : ObservableObject
             updateAction(StatusMessages);
         }
     }
+
+    private static int ParsePositiveInt(string value, int fallback)
+        => int.TryParse(value, out var parsed) && parsed > 0
+            ? parsed
+            : fallback;
+
+    private static int ParseNonNegativeInt(string value, int fallback)
+        => int.TryParse(value, out var parsed) && parsed >= 0
+            ? parsed
+            : fallback;
 }

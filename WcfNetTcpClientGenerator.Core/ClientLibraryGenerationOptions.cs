@@ -41,4 +41,10 @@ public sealed class ClientLibraryGenerationOptions
     public string? Password { get; init; }
 
     public string? ExistingProxyCode { get; init; }
+
+    public MethodDocumentationOptions DocumentationOptions { get; init; } = new();
+
+    public IMethodDocumentationProvider? MethodDocumentationProvider { get; init; }
+
+    public IProgress<GenerationDiagnostic>? ProgressReporter { get; init; }
 }

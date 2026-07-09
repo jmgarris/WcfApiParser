@@ -27,11 +27,23 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
 
+        services.AddHttpClient<CopilotChatClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(2);
+        });
+
         services.AddSingleton<DotNetSvcUtilRunner>();
         services.AddSingleton<WcfMetadataReader>();
         services.AddSingleton<ProxyCodeGenerator>();
         services.AddSingleton<WrapperInterfaceGenerator>();
+        services.AddSingleton<NullMethodDocumentationProvider>();
         services.AddSingleton<WrapperImplementationGenerator>();
+        services.AddSingleton<DocumentationPromptBuilder>();
+        services.AddSingleton<XmlDocumentationSanitizer>();
+        services.AddSingleton<MethodDocumentationCache>();
+        services.AddSingleton<IGraphAccessTokenProvider, GraphAccessTokenProvider>();
+        services.AddSingleton<CopilotConversationManager>();
+        services.AddSingleton<CopilotMethodDocumentationProvider>();
         services.AddSingleton<NetTcpBindingFactoryGenerator>();
         services.AddSingleton<ProjectFileGenerator>();
         services.AddSingleton<NuGetPackageBuilder>();
@@ -39,6 +51,8 @@ public partial class App : Application
 
         services.AddSingleton<IFolderPickerService, FolderPickerService>();
         services.AddSingleton<IFilePickerService, FilePickerService>();
+        services.AddSingleton<ICopilotAuthenticationService, CopilotAuthenticationService>();
+        services.AddSingleton<ICopilotConnectionService, CopilotConnectionService>();
         services.AddSingleton<IGeneratorWorkflowService, GeneratorWorkflowService>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();

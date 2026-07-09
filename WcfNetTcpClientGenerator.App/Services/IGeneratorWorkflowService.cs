@@ -11,4 +11,10 @@ public interface IGeneratorWorkflowService
     Task<GenerationResult> PackageAsync(string projectFilePath, CancellationToken cancellationToken);
 
     Task<DotNetSvcUtilPreflightResult> TestDotNetSvcUtilAsync(WcfMetadataDiscoveryOptions options, CancellationToken cancellationToken);
+
+    Task<CopilotConnectionTestResult> SignInToCopilotAsync(CopilotChatOptions options, CancellationToken cancellationToken);
+
+    Task<CopilotConnectionTestResult> SignOutOfCopilotAsync(CancellationToken cancellationToken);
+
+    Task<CopilotConnectionTestResult> TestCopilotConnectionAsync(CopilotChatOptions options, CancellationToken cancellationToken);
 }

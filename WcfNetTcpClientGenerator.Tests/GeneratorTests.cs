@@ -73,16 +73,56 @@ public sealed class GeneratorTests
     }
 
     [Test]
-    public void WrapperImplementationGenerator_ClosesOrAbortsClient()
+    public async Task WrapperImplementationGenerator_ClosesOrAbortsClient()
     {
         var generator = new WrapperImplementationGenerator();
-        var source = generator.Generate(CreateMetadata().Contracts.Single(), "Contoso.CustomerClient");
+        var source = (await generator.GenerateAsync(
+            CreateMetadata().Contracts.Single(),
+            "Contoso.CustomerClient",
+            new ClientLibraryGenerationOptions(),
+            new NullMethodDocumentationProvider(),
+            CancellationToken.None)).Source;
 
         Assert.Multiple(() =>
         {
             Assert.That(source, Does.Contain("client.Abort();"));
             Assert.That(source, Does.Contain("CloseClient(client);"));
             Assert.That(source, Does.Contain("NetTcpBindingFactory.Create(_options)"));
+            Assert.That(source, Does.Contain("/// <summary>"));
+        });
+    }
+
+    [Test]
+    public async Task WrapperGenerator_InsertsCommentsAboveEachGeneratedMethod()
+    {
+        var generator = new WrapperImplementationGenerator();
+        var result = await generator.GenerateAsync(
+            CreateMetadata().Contracts.Single(),
+            "Contoso.CustomerClient",
+            new ClientLibraryGenerationOptions(),
+            new NullMethodDocumentationProvider(),
+            CancellationToken.None);
+
+        Assert.That(result.Source, Does.Contain("/// <summary>"));
+        Assert.That(result.Source, Does.Contain("public async global::System.Threading.Tasks.Task<global::Contoso.Contracts.CustomerResponse> GetCustomer("));
+    }
+
+    [Test]
+    public async Task WrapperGenerator_ContinuesIfDocumentationProviderFails()
+    {
+        var generator = new WrapperImplementationGenerator();
+        var result = await generator.GenerateAsync(
+            CreateMetadata().Contracts.Single(),
+            "Contoso.CustomerClient",
+            new ClientLibraryGenerationOptions(),
+            new ThrowingDocumentationProvider(),
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Source, Does.Contain("/// <summary>"));
+            Assert.That(result.Source, Does.Contain("GetCustomer("));
+            Assert.That(result.Diagnostics.Any(static diagnostic => diagnostic.Code == "DOCUMENTATION_PROVIDER_FAILED"), Is.True);
         });
     }
 
@@ -159,6 +199,8 @@ public sealed class GeneratorTests
 
             Assert.That(generationResult.Success, Is.True, string.Join(Environment.NewLine, generationResult.Diagnostics.Select(static diagnostic => diagnostic.Message)));
             Assert.That(generationResult.ProjectFilePath, Is.Not.Null);
+            var generatedSource = await File.ReadAllTextAsync(Path.Combine(generationResult.OutputDirectory!, "Services", "CustomerServiceClient.cs"));
+            Assert.That(generatedSource, Does.Contain("/// <summary>"));
 
             var packResult = await new NuGetPackageBuilder().BuildAsync(generationResult.ProjectFilePath!, CancellationToken.None);
 
@@ -185,7 +227,8 @@ public sealed class GeneratorTests
             new WrapperInterfaceGenerator(),
             new WrapperImplementationGenerator(),
             new NetTcpBindingFactoryGenerator(),
-            new ProjectFileGenerator());
+            new ProjectFileGenerator(),
+            new NullMethodDocumentationProvider());
     }
 
     private static WcfServiceMetadataModel CreateMetadata()
@@ -275,4 +318,13 @@ namespace Contoso.Generated
     }
 }
 """;
+
+    private sealed class ThrowingDocumentationProvider : IMethodDocumentationProvider
+    {
+        public Task<MethodDocumentationResult> GenerateDocumentationAsync(
+            MethodDocumentationRequest request,
+            MethodDocumentationOptions options,
+            CancellationToken cancellationToken)
+            => throw new InvalidOperationException("boom");
+    }
 }

@@ -10,6 +10,7 @@ public sealed class ClientLibraryGenerator
     private readonly WrapperImplementationGenerator _implementationGenerator;
     private readonly NetTcpBindingFactoryGenerator _bindingFactoryGenerator;
     private readonly ProjectFileGenerator _projectFileGenerator;
+    private readonly NullMethodDocumentationProvider _fallbackDocumentationProvider;
 
     public ClientLibraryGenerator(
         WcfMetadataReader metadataReader,
@@ -17,7 +18,8 @@ public sealed class ClientLibraryGenerator
         WrapperInterfaceGenerator interfaceGenerator,
         WrapperImplementationGenerator implementationGenerator,
         NetTcpBindingFactoryGenerator bindingFactoryGenerator,
-        ProjectFileGenerator projectFileGenerator)
+        ProjectFileGenerator projectFileGenerator,
+        NullMethodDocumentationProvider fallbackDocumentationProvider)
     {
         _metadataReader = metadataReader;
         _proxyCodeGenerator = proxyCodeGenerator;
@@ -25,6 +27,7 @@ public sealed class ClientLibraryGenerator
         _implementationGenerator = implementationGenerator;
         _bindingFactoryGenerator = bindingFactoryGenerator;
         _projectFileGenerator = projectFileGenerator;
+        _fallbackDocumentationProvider = fallbackDocumentationProvider;
     }
 
     public async Task<GenerationResult> GenerateAsync(ClientLibraryGenerationOptions options, CancellationToken cancellationToken)
@@ -114,13 +117,13 @@ public sealed class ClientLibraryGenerator
 
         var projectFilePath = Path.Combine(libraryDirectory, $"{sanitizedLibraryName}.csproj");
 
-        await WriteLibraryAsync(
+        diagnostics.AddRange(await WriteLibraryAsync(
             libraryDirectory,
             sanitizedLibraryName,
             proxyResult.Metadata,
             options,
             projectFilePath,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken).ConfigureAwait(false));
 
         diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Info, $"Generated client library at {libraryDirectory}."));
 
@@ -134,7 +137,7 @@ public sealed class ClientLibraryGenerator
         };
     }
 
-    private async Task WriteLibraryAsync(
+    private async Task<IReadOnlyList<GenerationDiagnostic>> WriteLibraryAsync(
         string libraryDirectory,
         string libraryNamespace,
         WcfServiceMetadataModel metadata,
@@ -142,6 +145,7 @@ public sealed class ClientLibraryGenerator
         string projectFilePath,
         CancellationToken cancellationToken)
     {
+        var diagnostics = new List<GenerationDiagnostic>();
         var optionsDirectory = Path.Combine(libraryDirectory, "Options");
         var interfacesDirectory = Path.Combine(libraryDirectory, "Interfaces");
         var servicesDirectory = Path.Combine(libraryDirectory, "Services");
@@ -168,11 +172,22 @@ public sealed class ClientLibraryGenerator
                 _interfaceGenerator.Generate(contract, libraryNamespace),
                 cancellationToken).ConfigureAwait(false);
 
+            var implementationResult = await _implementationGenerator.GenerateAsync(
+                contract,
+                libraryNamespace,
+                options,
+                options.MethodDocumentationProvider ?? _fallbackDocumentationProvider,
+                cancellationToken).ConfigureAwait(false);
+
+            diagnostics.AddRange(implementationResult.Diagnostics);
+
             await File.WriteAllTextAsync(
                 Path.Combine(servicesDirectory, $"{contractTypeName}Client.cs"),
-                _implementationGenerator.Generate(contract, libraryNamespace),
+                implementationResult.Source,
                 cancellationToken).ConfigureAwait(false);
         }
+
+        return diagnostics;
     }
 
     private static IReadOnlyList<GenerationDiagnostic> ValidateOptions(ClientLibraryGenerationOptions options)

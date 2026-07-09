@@ -138,5 +138,14 @@ public sealed class MainViewModelTests
 
         public Task<DotNetSvcUtilPreflightResult> TestDotNetSvcUtilAsync(WcfMetadataDiscoveryOptions options, CancellationToken cancellationToken)
             => Task.FromResult(new DotNetSvcUtilPreflightResult());
+
+        public Task<CopilotConnectionTestResult> SignInToCopilotAsync(CopilotChatOptions options, CancellationToken cancellationToken)
+            => Task.FromResult(new CopilotConnectionTestResult());
+
+        public Task<CopilotConnectionTestResult> SignOutOfCopilotAsync(CancellationToken cancellationToken)
+            => Task.FromResult(new CopilotConnectionTestResult());
+
+        public Task<CopilotConnectionTestResult> TestCopilotConnectionAsync(CopilotChatOptions options, CancellationToken cancellationToken)
+            => Task.FromResult(new CopilotConnectionTestResult());
     }
 }
