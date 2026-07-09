@@ -7,14 +7,19 @@ namespace WcfNetTcpClientGenerator.App;
 
 public partial class MainWindow : Window
 {
-    public MainWindow(MainViewModel viewModel, IFolderPickerService folderPickerService)
+    public MainWindow(
+        MainViewModel viewModel,
+        IFolderPickerService folderPickerService,
+        IFilePickerService filePickerService)
     {
         InitializeComponent();
 
         ViewModel = viewModel;
         RootLayout.DataContext = viewModel;
 
-        folderPickerService.Initialize(WindowNative.GetWindowHandle(this));
+        var windowHandle = WindowNative.GetWindowHandle(this);
+        folderPickerService.Initialize(windowHandle);
+        filePickerService.Initialize(windowHandle);
     }
 
     public MainViewModel ViewModel { get; }

@@ -9,4 +9,6 @@ public interface IGeneratorWorkflowService
     Task<GenerationResult> GenerateAsync(ClientLibraryGenerationOptions options, CancellationToken cancellationToken);
 
     Task<GenerationResult> PackageAsync(string projectFilePath, CancellationToken cancellationToken);
+
+    Task<DotNetSvcUtilPreflightResult> TestDotNetSvcUtilAsync(WcfMetadataDiscoveryOptions options, CancellationToken cancellationToken);
 }

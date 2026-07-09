@@ -10,5 +10,7 @@ public sealed class WcfMetadataDiscoveryOptions
 
     public string? MetadataFolderPath { get; init; }
 
+    public string? DotNetSvcUtilPath { get; init; }
+
     public string ServiceNamespace { get; init; } = "Generated.Wcf";
 }

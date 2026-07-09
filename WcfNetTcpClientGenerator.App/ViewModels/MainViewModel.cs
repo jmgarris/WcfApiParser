@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI.Dispatching;
 using WcfNetTcpClientGenerator.App.Models;
 using WcfNetTcpClientGenerator.App.Services;
 using WcfNetTcpClientGenerator.Core;
@@ -10,19 +11,30 @@ namespace WcfNetTcpClientGenerator.App.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private readonly IFolderPickerService _folderPickerService;
+    private readonly IFilePickerService _filePickerService;
     private readonly IGeneratorWorkflowService _workflowService;
+    private readonly DispatcherQueue? _dispatcherQueue;
+    private readonly object _statusMessagesGate = new();
 
     private string? _generatedProjectFilePath;
 
-    public MainViewModel(IFolderPickerService folderPickerService, IGeneratorWorkflowService workflowService)
+    public MainViewModel(
+        IFolderPickerService folderPickerService,
+        IFilePickerService filePickerService,
+        IGeneratorWorkflowService workflowService)
     {
         _folderPickerService = folderPickerService;
+        _filePickerService = filePickerService;
         _workflowService = workflowService;
+        _dispatcherQueue = DispatcherQueue.GetForCurrentThread();
 
         AnalyzeServiceMetadataCommand = new AsyncRelayCommand(AnalyzeServiceMetadataAsync);
         GenerateClassLibraryCommand = new AsyncRelayCommand(GenerateClassLibraryAsync);
         PackageClassLibraryCommand = new AsyncRelayCommand(PackageClassLibraryAsync);
         BrowseOutputFolderCommand = new AsyncRelayCommand(BrowseOutputFolderAsync);
+        BrowseDotNetSvcUtilPathCommand = new AsyncRelayCommand(BrowseDotNetSvcUtilPathAsync);
+        TestDotNetSvcUtilCommand = new AsyncRelayCommand(TestDotNetSvcUtilAsync);
+        ClearStatusCommand = new RelayCommand(ClearStatus);
     }
 
     public ObservableCollection<OperationRow> Operations { get; } = [];
@@ -53,6 +65,12 @@ public partial class MainViewModel : ObservableObject
 
     public IAsyncRelayCommand BrowseOutputFolderCommand { get; }
 
+    public IAsyncRelayCommand BrowseDotNetSvcUtilPathCommand { get; }
+
+    public IAsyncRelayCommand TestDotNetSvcUtilCommand { get; }
+
+    public IRelayCommand ClearStatusCommand { get; }
+
     [ObservableProperty]
     private string serviceEndpointUrl = string.Empty;
 
@@ -64,6 +82,9 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private string metadataFolderPath = string.Empty;
+
+    [ObservableProperty]
+    private string dotNetSvcUtilPath = string.Empty;
 
     [ObservableProperty]
     private string serviceNamespace = "Generated.Wcf";
@@ -110,6 +131,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string busyMessage = string.Empty;
 
+    [ObservableProperty]
+    private int progressPercentage;
+
     private async Task BrowseOutputFolderAsync()
     {
         var folder = await _folderPickerService.PickFolderAsync();
@@ -119,36 +143,85 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private async Task BrowseDotNetSvcUtilPathAsync()
+    {
+        var filePath = await _filePickerService.PickExecutableAsync();
+        if (!string.IsNullOrWhiteSpace(filePath))
+        {
+            DotNetSvcUtilPath = filePath;
+        }
+    }
+
     private async Task AnalyzeServiceMetadataAsync()
     {
         BusyMessage = "Analyzing metadata...";
+        ProgressPercentage = 10;
         ClearState(clearMessages: false);
         AddStatus("Info", "Starting metadata analysis.");
 
         var result = await _workflowService.AnalyzeAsync(BuildDiscoveryOptions(), CancellationToken.None);
         PopulateFromMetadataResult(result);
 
+        ProgressPercentage = 0;
+        BusyMessage = string.Empty;
+    }
+
+    private async Task TestDotNetSvcUtilAsync()
+    {
+        BusyMessage = "Testing dotnet-svcutil...";
+        ProgressPercentage = 20;
+        AddStatus("Info", "Running dotnet-svcutil preflight check.");
+
+        var result = await _workflowService.TestDotNetSvcUtilAsync(BuildDiscoveryOptions(), CancellationToken.None);
+
+        AddStatus(result.ToolFound ? "Info" : "Error", $"Mode: {result.ToolExecutionMode}");
+
+        if (!string.IsNullOrWhiteSpace(result.ToolPath))
+        {
+            AddStatus("Info", $"Tool path: {result.ToolPath}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.WorkingDirectory))
+        {
+            AddStatus("Info", $"Working directory: {result.WorkingDirectory}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.VersionOutput))
+        {
+            AddStatus("Info", result.VersionOutput.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.DiagnosticMessage))
+        {
+            AddStatus(result.ToolFound ? "Info" : "Error", result.DiagnosticMessage);
+        }
+
+        ProgressPercentage = 0;
         BusyMessage = string.Empty;
     }
 
     private async Task GenerateClassLibraryAsync()
     {
         BusyMessage = "Generating class library...";
+        ProgressPercentage = 50;
         AddStatus("Info", "Generating client library.");
 
         var result = await _workflowService.GenerateAsync(BuildGenerationOptions(), CancellationToken.None);
         PopulateFromGenerationResult(result);
 
+        ProgressPercentage = 0;
         BusyMessage = string.Empty;
     }
 
     private async Task PackageClassLibraryAsync()
     {
         BusyMessage = "Packaging NuGet package...";
+        ProgressPercentage = 75;
 
         if (string.IsNullOrWhiteSpace(_generatedProjectFilePath))
         {
             AddStatus("Warning", "Generate the client library before packaging.");
+            ProgressPercentage = 0;
             BusyMessage = string.Empty;
             return;
         }
@@ -156,7 +229,15 @@ public partial class MainViewModel : ObservableObject
         var result = await _workflowService.PackageAsync(_generatedProjectFilePath, CancellationToken.None);
         PopulateFromGenerationResult(result);
 
+        ProgressPercentage = 0;
         BusyMessage = string.Empty;
+    }
+
+    private void ClearStatus()
+    {
+        BusyMessage = string.Empty;
+        ProgressPercentage = 0;
+        UpdateStatusMessages(static statusMessages => statusMessages.Clear());
     }
 
     private WcfMetadataDiscoveryOptions BuildDiscoveryOptions()
@@ -166,6 +247,7 @@ public partial class MainViewModel : ObservableObject
             MetadataEndpointUrl = MetadataEndpointUrl,
             WsdlFilePath = WsdlFilePath,
             MetadataFolderPath = MetadataFolderPath,
+            DotNetSvcUtilPath = DotNetSvcUtilPath,
             ServiceNamespace = ServiceNamespace
         };
 
@@ -237,10 +319,13 @@ public partial class MainViewModel : ObservableObject
 
     private void AddStatus(string severity, string message)
     {
-        StatusMessages.Add(new StatusMessage
+        UpdateStatusMessages(statusMessages =>
         {
-            Severity = severity,
-            Message = message
+            statusMessages.Add(new StatusMessage
+            {
+                Severity = severity,
+                Message = message
+            });
         });
     }
 
@@ -250,7 +335,33 @@ public partial class MainViewModel : ObservableObject
 
         if (clearMessages)
         {
-            StatusMessages.Clear();
+            UpdateStatusMessages(static statusMessages => statusMessages.Clear());
+        }
+    }
+
+    private void UpdateStatusMessages(Action<ObservableCollection<StatusMessage>> updateAction)
+    {
+        if (_dispatcherQueue is not null && !_dispatcherQueue.HasThreadAccess)
+        {
+            var completionSource = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            _dispatcherQueue.TryEnqueue(() =>
+            {
+                lock (_statusMessagesGate)
+                {
+                    updateAction(StatusMessages);
+                }
+
+                completionSource.SetResult();
+            });
+
+            completionSource.Task.GetAwaiter().GetResult();
+            return;
+        }
+
+        lock (_statusMessagesGate)
+        {
+            updateAction(StatusMessages);
         }
     }
 }

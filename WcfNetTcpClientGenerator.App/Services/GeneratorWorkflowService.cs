@@ -7,15 +7,18 @@ public sealed class GeneratorWorkflowService : IGeneratorWorkflowService
     private readonly WcfMetadataReader _metadataReader;
     private readonly ClientLibraryGenerator _clientLibraryGenerator;
     private readonly NuGetPackageBuilder _packageBuilder;
+    private readonly DotNetSvcUtilRunner _dotNetSvcUtilRunner;
 
     public GeneratorWorkflowService(
         WcfMetadataReader metadataReader,
         ClientLibraryGenerator clientLibraryGenerator,
-        NuGetPackageBuilder packageBuilder)
+        NuGetPackageBuilder packageBuilder,
+        DotNetSvcUtilRunner dotNetSvcUtilRunner)
     {
         _metadataReader = metadataReader;
         _clientLibraryGenerator = clientLibraryGenerator;
         _packageBuilder = packageBuilder;
+        _dotNetSvcUtilRunner = dotNetSvcUtilRunner;
     }
 
     public Task<MetadataReadResult> AnalyzeAsync(WcfMetadataDiscoveryOptions options, CancellationToken cancellationToken)
@@ -26,4 +29,7 @@ public sealed class GeneratorWorkflowService : IGeneratorWorkflowService
 
     public Task<GenerationResult> PackageAsync(string projectFilePath, CancellationToken cancellationToken)
         => _packageBuilder.BuildAsync(projectFilePath, cancellationToken);
+
+    public Task<DotNetSvcUtilPreflightResult> TestDotNetSvcUtilAsync(WcfMetadataDiscoveryOptions options, CancellationToken cancellationToken)
+        => _dotNetSvcUtilRunner.CheckAvailabilityAsync(options.DotNetSvcUtilPath, cancellationToken);
 }

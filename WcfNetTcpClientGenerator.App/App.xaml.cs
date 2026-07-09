@@ -38,6 +38,7 @@ public partial class App : Application
         services.AddSingleton<ClientLibraryGenerator>();
 
         services.AddSingleton<IFolderPickerService, FolderPickerService>();
+        services.AddSingleton<IFilePickerService, FilePickerService>();
         services.AddSingleton<IGeneratorWorkflowService, GeneratorWorkflowService>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();

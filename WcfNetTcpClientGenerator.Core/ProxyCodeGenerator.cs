@@ -13,9 +13,11 @@ public sealed class ProxyCodeGenerator
         IReadOnlyList<string> metadataSources,
         string outputDirectory,
         string serviceNamespace,
+        string? configuredToolPath,
         CancellationToken cancellationToken)
     {
-        if (!await _runner.IsAvailableAsync(cancellationToken).ConfigureAwait(false))
+        var preflightResult = await _runner.CheckAvailabilityAsync(configuredToolPath, outputDirectory, cancellationToken).ConfigureAwait(false);
+        if (!preflightResult.ToolFound)
         {
             return new ProxyGenerationResult
             {
@@ -23,7 +25,7 @@ public sealed class ProxyCodeGenerator
                 [
                     new GenerationDiagnostic(
                         DiagnosticSeverity.Error,
-                        "dotnet-svcutil was not found. Install it or run the solution from the repository root that contains the local tool manifest.",
+                        preflightResult.DiagnosticMessage,
                         "DOTNET_SVCUTIL_NOT_FOUND")
                 ]
             };
@@ -37,6 +39,7 @@ public sealed class ProxyCodeGenerator
             outputDirectory,
             proxyPath,
             sanitizedNamespace,
+            configuredToolPath,
             cancellationToken).ConfigureAwait(false);
 
         if (!result.Success || string.IsNullOrWhiteSpace(result.ProxyFilePath))
@@ -56,6 +59,13 @@ public sealed class ProxyCodeGenerator
         var parseResult = ProxyCodeParser.Parse(await File.ReadAllTextAsync(result.ProxyFilePath, cancellationToken).ConfigureAwait(false), sanitizedNamespace);
         var diagnostics = parseResult.Diagnostics.ToList();
 
+        diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Info, $"dotnet-svcutil mode: {result.PreflightResult?.ToolExecutionMode}."));
+        if (!string.IsNullOrWhiteSpace(result.PreflightResult?.ToolPath))
+        {
+            diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Info, $"dotnet-svcutil source: {result.PreflightResult.ToolPath}."));
+        }
+        diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Info, $"Command: {result.ExecutedCommand}"));
+        diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Info, $"Working directory: {result.WorkingDirectory}"));
         diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Info, $"Proxy generated at {result.ProxyFilePath}."));
 
         return new ProxyGenerationResult
@@ -69,8 +79,21 @@ public sealed class ProxyCodeGenerator
 
     private static string BuildFailureMessage(IReadOnlyList<string> metadataSources, DotNetSvcUtilRunner.DotNetSvcUtilResult result)
     {
-        var details = string.IsNullOrWhiteSpace(result.StandardError) ? result.StandardOutput : result.StandardError;
-        return $"Proxy generation failed for metadata source(s): {string.Join(", ", metadataSources)}. {details}".Trim();
+        if (result.PreflightResult is { ToolFound: false })
+        {
+            return result.PreflightResult.DiagnosticMessage;
+        }
+
+        var output = string.IsNullOrWhiteSpace(result.StandardOutput) ? "(none)" : result.StandardOutput.Trim();
+        var error = string.IsNullOrWhiteSpace(result.StandardError) ? "(none)" : result.StandardError.Trim();
+
+        return
+            $"Proxy generation failed for metadata source(s): {string.Join(", ", metadataSources)}.{Environment.NewLine}" +
+            $"Command: {result.ExecutedCommand}{Environment.NewLine}" +
+            $"Working directory: {result.WorkingDirectory}{Environment.NewLine}" +
+            $"Exit code: {result.ExitCode}{Environment.NewLine}" +
+            $"Standard output:{Environment.NewLine}{output}{Environment.NewLine}" +
+            $"Standard error:{Environment.NewLine}{error}";
     }
 
     public sealed class ProxyGenerationResult

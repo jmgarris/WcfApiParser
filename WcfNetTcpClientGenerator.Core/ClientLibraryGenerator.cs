@@ -96,6 +96,7 @@ public sealed class ClientLibraryGenerator
                 metadataResult.MetadataSources,
                 Path.Combine(libraryDirectory, "ServiceReferences"),
                 options.DiscoveryOptions.ServiceNamespace,
+                options.DiscoveryOptions.DotNetSvcUtilPath,
                 cancellationToken).ConfigureAwait(false);
         }
 
