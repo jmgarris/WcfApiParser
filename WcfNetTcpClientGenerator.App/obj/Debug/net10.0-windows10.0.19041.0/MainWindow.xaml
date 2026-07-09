@@ -1,0 +1,209 @@
+﻿<Window
+    x:Class="WcfNetTcpClientGenerator.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="WCF Net.TCP Client Generator">
+    <ScrollViewer>
+        <Grid x:ConnectionId='2' x:Name="RootLayout" Padding="24" RowSpacing="16" ColumnSpacing="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Spacing="4">
+                <TextBlock Text="WCF Net.TCP Client Generator" FontSize="28" FontWeight="SemiBold" />
+                <TextBlock Text="Analyze metadata, generate a clean .NET 10 client library, and package it as NuGet." Opacity="0.75" TextWrapping="Wrap" />
+            </StackPanel>
+
+            <Grid Grid.Row="1" ColumnSpacing="16" RowSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6">
+                    <TextBlock Text="WCF service endpoint URL" />
+                    <TextBox Text="{Binding ServiceEndpointUrl, Mode=TwoWay}" PlaceholderText="net.tcp://server:808/MyService" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6">
+                    <TextBlock Text="Metadata endpoint URL" />
+                    <TextBox Text="{Binding MetadataEndpointUrl, Mode=TwoWay}" PlaceholderText="http://server:808/MyService/mex" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="6">
+                    <TextBlock Text="WSDL file path" />
+                    <TextBox Text="{Binding WsdlFilePath, Mode=TwoWay}" PlaceholderText="C:\Metadata\service.wsdl" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6">
+                    <TextBlock Text="Metadata folder path" />
+                    <TextBox Text="{Binding MetadataFolderPath, Mode=TwoWay}" PlaceholderText="C:\Metadata\ServiceDefinition" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="2" Grid.Column="0" Spacing="6">
+                    <TextBlock Text="Service namespace" />
+                    <TextBox Text="{Binding ServiceNamespace, Mode=TwoWay}" PlaceholderText="Contoso.Services.Customer" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="2" Grid.Column="1" Spacing="6">
+                    <TextBlock Text="Generated class library name" />
+                    <TextBox Text="{Binding GeneratedLibraryName, Mode=TwoWay}" PlaceholderText="Contoso.CustomerClient" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="3" Grid.Column="0" Spacing="6">
+                    <TextBlock Text="NuGet package ID" />
+                    <TextBox Text="{Binding PackageId, Mode=TwoWay}" PlaceholderText="Contoso.CustomerClient" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="3" Grid.Column="1" Spacing="6">
+                    <TextBlock Text="NuGet package version" />
+                    <TextBox Text="{Binding PackageVersion, Mode=TwoWay}" PlaceholderText="1.0.0" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Spacing="6">
+                    <TextBlock Text="Output folder" />
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Text="{Binding OutputFolder, Mode=TwoWay}" PlaceholderText="C:\Output\Clients" />
+                        <Button Grid.Column="1" Content="Browse" Command="{Binding BrowseOutputFolderCommand}" />
+                    </Grid>
+                </StackPanel>
+
+                <StackPanel Grid.Row="5" Grid.Column="0" Spacing="6">
+                    <TextBlock Text="Security mode" />
+                    <ComboBox ItemsSource="{Binding SecurityModes}" SelectedItem="{Binding SecurityMode, Mode=TwoWay}" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="5" Grid.Column="1" Spacing="6">
+                    <TextBlock Text="TCP client credential type" />
+                    <ComboBox ItemsSource="{Binding TcpCredentialTypes}" SelectedItem="{Binding TcpClientCredentialType, Mode=TwoWay}" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="6" Grid.Column="0" Spacing="6">
+                    <TextBlock Text="Reliable session enabled" />
+                    <CheckBox IsChecked="{Binding ReliableSessionEnabled, Mode=TwoWay}" Content="Enable reliable sessions when supported" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="6" Grid.Column="1" Spacing="6">
+                    <TextBlock Text="Max received message size" />
+                    <TextBox Text="{Binding MaxReceivedMessageSize, Mode=TwoWay}" />
+                </StackPanel>
+
+                <Grid Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Spacing="6">
+                        <TextBlock Text="Open timeout" />
+                        <TextBox Text="{Binding OpenTimeout, Mode=TwoWay}" PlaceholderText="00:00:30" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Spacing="6">
+                        <TextBlock Text="Send timeout" />
+                        <TextBox Text="{Binding SendTimeout, Mode=TwoWay}" PlaceholderText="00:01:40" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Spacing="6">
+                        <TextBlock Text="Receive timeout" />
+                        <TextBox Text="{Binding ReceiveTimeout, Mode=TwoWay}" PlaceholderText="00:01:40" />
+                    </StackPanel>
+                </Grid>
+
+                <Grid Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Spacing="6">
+                        <TextBlock Text="Username" />
+                        <TextBox Text="{Binding Username, Mode=TwoWay}" PlaceholderText="Optional" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Spacing="6">
+                        <TextBlock Text="Password" />
+                        <PasswordBox x:ConnectionId='5'                                                 />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12">
+                <Button Content="Analyze Service Metadata" Command="{Binding AnalyzeServiceMetadataCommand}" />
+                <Button Content="Generate Class Library" Command="{Binding GenerateClassLibraryCommand}" />
+                <Button Content="Package Class Library as NuGet" Command="{Binding PackageClassLibraryCommand}" />
+                <TextBlock VerticalAlignment="Center" Text="{Binding BusyMessage}" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="3" Spacing="8">
+                <TextBlock Text="Detected service operations" FontSize="20" FontWeight="SemiBold" />
+                <ListView ItemsSource="{Binding Operations}" MinHeight="220">
+                    <ListView.Header>
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="180" />
+                                <ColumnDefinition Width="220" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Contract" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="1" Text="Operation" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="2" Text="Signature" FontWeight="SemiBold" />
+                        </Grid>
+                    </ListView.Header>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="180" />
+                                    <ColumnDefinition Width="220" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding ContractName}" />
+                                <TextBlock Grid.Column="1" Text="{Binding OperationName}" />
+                                <TextBlock Grid.Column="2" Text="{Binding Signature}" TextWrapping="Wrap" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+
+            <StackPanel Grid.Row="4" Spacing="8">
+                <TextBlock Text="Status and progress" FontSize="20" FontWeight="SemiBold" />
+                <ListView ItemsSource="{Binding StatusMessages}" MinHeight="220">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Spacing="2">
+                                <TextBlock Text="{Binding Severity}" FontWeight="SemiBold" />
+                                <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Window>
+
