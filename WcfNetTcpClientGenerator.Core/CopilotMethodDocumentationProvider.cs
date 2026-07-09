@@ -33,12 +33,13 @@ public sealed class CopilotMethodDocumentationProvider : IMethodDocumentationPro
         MethodDocumentationOptions options,
         CancellationToken cancellationToken)
     {
-        if (!options.EnableCopilotComments)
+        if (options.ProviderKind != DocumentationProviderKind.Microsoft365Copilot)
         {
             return await _fallbackProvider.GenerateDocumentationAsync(request, options, cancellationToken).ConfigureAwait(false);
         }
 
-        if (options.CacheGeneratedComments && !options.RegenerateComments && _cache.TryGet(request, out var cached) && cached is not null)
+        var cacheKey = $"Microsoft365Copilot|{MethodDocumentationCache.CreateStableHash(request, "Microsoft365Copilot", options.CopilotChat.TenantId, options.CopilotChat.ClientId)}";
+        if (options.CacheGeneratedComments && !options.RegenerateComments && _cache.TryGet(cacheKey, out var cached) && cached is not null)
         {
             return cached with
             {
@@ -107,7 +108,7 @@ public sealed class CopilotMethodDocumentationProvider : IMethodDocumentationPro
                     return await CreateFallbackAsync(request, options, diagnostics, $"Copilot failed for {request.GeneratedWrapperMethodName}; using fallback comment.", cancellationToken).ConfigureAwait(false);
                 }
 
-                var sanitizeResult = _sanitizer.Sanitize(chatResult.ResponseText, request, options.MaxCommentLength);
+                var sanitizeResult = _sanitizer.Sanitize(chatResult.ResponseText, request, options.MaxCommentLength, "Copilot");
                 diagnostics.AddRange(sanitizeResult.Diagnostics);
                 if (!sanitizeResult.Success)
                 {
@@ -126,7 +127,7 @@ public sealed class CopilotMethodDocumentationProvider : IMethodDocumentationPro
 
                 if (options.CacheGeneratedComments)
                 {
-                    _cache.Set(request, aiResult);
+                    _cache.Set(cacheKey, aiResult);
                 }
 
                 return aiResult;

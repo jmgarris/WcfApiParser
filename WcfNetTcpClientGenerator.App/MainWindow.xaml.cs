@@ -31,4 +31,12 @@ public partial class MainWindow : Window
             ViewModel.Password = passwordBox.Password;
         }
     }
+
+    private void OpenAiApiKeyPasswordBox_OnPasswordChanged(object sender, RoutedEventArgs e)
+    {
+        if (sender is Microsoft.UI.Xaml.Controls.PasswordBox passwordBox)
+        {
+            ViewModel.OpenAiApiKey = passwordBox.Password;
+        }
+    }
 }

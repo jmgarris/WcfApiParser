@@ -4,11 +4,15 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:automation="using:Microsoft.UI.Xaml.Automation"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:WcfNetTcpClientGenerator.App"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Title="WCF Net.TCP Client Generator">
     <ScrollViewer>
         <Grid x:Name="RootLayout" Padding="24" RowSpacing="16" ColumnSpacing="16">
+            <Grid.Resources>
+                <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+            </Grid.Resources>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -28,6 +32,13 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -173,79 +184,200 @@
 
                 <StackPanel Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4">
                     <TextBlock Text="AI Documentation" FontSize="20" FontWeight="SemiBold" />
-                    <TextBlock Text="Generate XML documentation comments with Microsoft 365 Copilot Chat. The generator still works without Copilot sign-in." TextWrapping="Wrap" Opacity="0.75" />
-                    <TextBlock Text="Admin consent may be required depending on tenant policy and Copilot licensing." TextWrapping="Wrap" Opacity="0.75" />
+                    <TextBlock Text="Generate XML documentation comments with a selectable provider or stay on deterministic local fallback comments." TextWrapping="Wrap" Opacity="0.75" />
+                    <TextBlock Text="The generated client library never includes AI provider packages, keys, or settings." TextWrapping="Wrap" Opacity="0.75" />
                 </StackPanel>
 
                 <Grid Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="16">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="200" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <CheckBox Content="Enable Microsoft 365 Copilot comments" IsChecked="{Binding EnableCopilotComments, Mode=TwoWay}" />
-                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding CopilotStatusText}" TextWrapping="Wrap" />
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Documentation provider" />
+                        <ComboBox
+                            ItemsSource="{Binding DocumentationProviders}"
+                            DisplayMemberPath="Label"
+                            SelectedValuePath="Value"
+                            SelectedValue="{Binding SelectedDocumentationProvider, Mode=TwoWay}" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Bottom" Text="Local fallback works without AI access. Microsoft 365 Copilot may require tenant consent. OpenAI prefers the OPENAI_API_KEY environment variable by default." TextWrapping="Wrap" Opacity="0.75" />
                 </Grid>
 
-                <StackPanel Grid.Row="12" Grid.Column="0" Spacing="6">
-                    <TextBlock Text="Tenant ID" />
-                    <TextBox Text="{Binding CopilotTenantId, Mode=TwoWay}" PlaceholderText="organizations or tenant GUID" />
+                <StackPanel
+                    Grid.Row="12"
+                    Grid.Column="0"
+                    Grid.ColumnSpan="2"
+                    Spacing="10"
+                    Visibility="{Binding IsCopilotProviderSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Content="Enable Microsoft 365 Copilot comments" IsChecked="{Binding EnableCopilotComments, Mode=TwoWay}" />
+                        <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding CopilotStatusText}" TextWrapping="Wrap" />
+                    </Grid>
+
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <TextBlock Text="Tenant ID" />
+                            <TextBox Text="{Binding CopilotTenantId, Mode=TwoWay}" PlaceholderText="organizations or tenant GUID" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <TextBlock Text="Client ID" />
+                            <TextBox Text="{Binding CopilotClientId, Mode=TwoWay}" PlaceholderText="Microsoft Entra app registration client ID" />
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Required scopes" />
+                        <TextBox Text="{Binding CopilotRequiredScopes, Mode=TwoWay}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="70" />
+                    </StackPanel>
+
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Content="Sign in" Command="{Binding SignInToCopilotCommand}" />
+                        <Button Grid.Column="1" Content="Sign out" Command="{Binding SignOutOfCopilotCommand}" />
+                        <Button Grid.Column="2" Content="Test Copilot connection" Command="{Binding TestCopilotConnectionCommand}" />
+                        <Button Grid.Column="3" Content="Regenerate comments" Command="{Binding RegenerateCommentsCommand}" />
+                        <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding SignedInAccount}" TextWrapping="Wrap" />
+                    </Grid>
+
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <TextBlock Text="Max comment length" />
+                            <TextBox Text="{Binding CopilotMaxCommentLength, Mode=TwoWay}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <TextBlock Text="Timeout (seconds)" />
+                            <TextBox Text="{Binding CopilotTimeoutSeconds, Mode=TwoWay}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="6">
+                            <TextBlock Text="Retry count" />
+                            <TextBox Text="{Binding CopilotRetryCount, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Grid.Column="0" Content="Use interactive sign-in" IsChecked="{Binding CopilotUseInteractiveSignIn, Mode=TwoWay}" />
+                        <CheckBox Grid.Column="1" Content="Cache generated comments" IsChecked="{Binding CacheGeneratedComments, Mode=TwoWay}" />
+                        <CheckBox Grid.Column="2" Content="Disable web grounding if supported" IsChecked="{Binding CopilotDisableWebGrounding, Mode=TwoWay}" />
+                    </Grid>
                 </StackPanel>
 
-                <StackPanel Grid.Row="12" Grid.Column="1" Spacing="6">
-                    <TextBlock Text="Client ID" />
-                    <TextBox Text="{Binding CopilotClientId, Mode=TwoWay}" PlaceholderText="Microsoft Entra app registration client ID" />
+                <StackPanel
+                    Grid.Row="13"
+                    Grid.Column="0"
+                    Grid.ColumnSpan="2"
+                    Spacing="10"
+                    Visibility="{Binding IsOpenAiProviderSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Content="Enable OpenAI comments" IsChecked="{Binding EnableOpenAiComments, Mode=TwoWay}" />
+                        <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding OpenAiStatusText}" TextWrapping="Wrap" />
+                    </Grid>
+
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <TextBlock Text="API key source" />
+                            <ComboBox
+                                ItemsSource="{Binding OpenAiApiKeySources}"
+                                DisplayMemberPath="Label"
+                                SelectedValuePath="Value"
+                                SelectedValue="{Binding SelectedOpenAiApiKeySource, Mode=TwoWay}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <TextBlock Text="API key environment variable name" />
+                            <TextBox Text="{Binding OpenAiApiKeyEnvironmentVariableName, Mode=TwoWay}" PlaceholderText="OPENAI_API_KEY" />
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Spacing="6" Visibility="{Binding IsUserEnteredOpenAiKeySelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="API key" />
+                        <PasswordBox PasswordChanged="OpenAiApiKeyPasswordBox_OnPasswordChanged" />
+                    </StackPanel>
+
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <TextBlock Text="Model name" />
+                            <TextBox Text="{Binding OpenAiModelName, Mode=TwoWay}" PlaceholderText="gpt-5.6" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <TextBlock Text="Max output tokens" />
+                            <TextBox Text="{Binding OpenAiMaxOutputTokens, Mode=TwoWay}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="6">
+                            <TextBlock Text="Temperature" />
+                            <TextBox Text="{Binding OpenAiTemperature, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <TextBlock Text="Timeout (seconds)" />
+                            <TextBox Text="{Binding OpenAiTimeoutSeconds, Mode=TwoWay}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <TextBlock Text="Retry count" />
+                            <TextBox Text="{Binding OpenAiRetryCount, Mode=TwoWay}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="6">
+                            <TextBlock Text="Max comment length" />
+                            <TextBox Text="{Binding CopilotMaxCommentLength, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Button Content="Test OpenAI connection" Command="{Binding TestOpenAiConnectionCommand}" />
+                        <Button Grid.Column="1" Content="Clear OpenAI cached comments" Command="{Binding ClearOpenAiCachedCommentsCommand}" />
+                        <Button Grid.Column="2" Content="Regenerate OpenAI comments" Command="{Binding RegenerateCommentsCommand}" />
+                        <CheckBox Grid.Column="3" VerticalAlignment="Center" Content="Cache generated comments" IsChecked="{Binding CacheGeneratedComments, Mode=TwoWay}" />
+                    </Grid>
                 </StackPanel>
-
-                <StackPanel Grid.Row="13" Grid.Column="0" Grid.ColumnSpan="2" Spacing="6">
-                    <TextBlock Text="Required scopes" />
-                    <TextBox Text="{Binding CopilotRequiredScopes, Mode=TwoWay}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="70" />
-                </StackPanel>
-
-                <Grid Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="12">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Button Content="Sign in" Command="{Binding SignInToCopilotCommand}" />
-                    <Button Grid.Column="1" Content="Sign out" Command="{Binding SignOutOfCopilotCommand}" />
-                    <Button Grid.Column="2" Content="Test Copilot connection" Command="{Binding TestCopilotConnectionCommand}" />
-                    <Button Grid.Column="3" Content="Regenerate comments" Command="{Binding RegenerateCommentsCommand}" />
-                    <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding SignedInAccount}" TextWrapping="Wrap" />
-                </Grid>
-
-                <Grid Grid.Row="15" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" Spacing="6">
-                        <TextBlock Text="Max comment length" />
-                        <TextBox Text="{Binding CopilotMaxCommentLength, Mode=TwoWay}" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Spacing="6">
-                        <TextBlock Text="Timeout (seconds)" />
-                        <TextBox Text="{Binding CopilotTimeoutSeconds, Mode=TwoWay}" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="2" Spacing="6">
-                        <TextBlock Text="Retry count" />
-                        <TextBox Text="{Binding CopilotRetryCount, Mode=TwoWay}" />
-                    </StackPanel>
-                </Grid>
-
-                <Grid Grid.Row="16" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <CheckBox Grid.Column="0" Content="Use interactive sign-in" IsChecked="{Binding CopilotUseInteractiveSignIn, Mode=TwoWay}" />
-                    <CheckBox Grid.Column="1" Content="Cache generated comments" IsChecked="{Binding CacheGeneratedComments, Mode=TwoWay}" />
-                    <CheckBox Grid.Column="2" Content="Disable web grounding if supported" IsChecked="{Binding CopilotDisableWebGrounding, Mode=TwoWay}" />
-                </Grid>
             </Grid>
 
             <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12">

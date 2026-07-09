@@ -31,6 +31,10 @@ public partial class App : Application
         {
             client.Timeout = TimeSpan.FromMinutes(2);
         });
+        services.AddHttpClient<OpenAiDocumentationClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(2);
+        });
 
         services.AddSingleton<DotNetSvcUtilRunner>();
         services.AddSingleton<WcfMetadataReader>();
@@ -39,11 +43,15 @@ public partial class App : Application
         services.AddSingleton<NullMethodDocumentationProvider>();
         services.AddSingleton<WrapperImplementationGenerator>();
         services.AddSingleton<DocumentationPromptBuilder>();
+        services.AddSingleton<OpenAiPromptBuilder>();
         services.AddSingleton<XmlDocumentationSanitizer>();
         services.AddSingleton<MethodDocumentationCache>();
         services.AddSingleton<IGraphAccessTokenProvider, GraphAccessTokenProvider>();
+        services.AddSingleton<IOpenAiApiKeyProvider, OpenAiApiKeyProvider>();
         services.AddSingleton<CopilotConversationManager>();
         services.AddSingleton<CopilotMethodDocumentationProvider>();
+        services.AddSingleton<OpenAiConnectionTester>();
+        services.AddSingleton<OpenAiMethodDocumentationProvider>();
         services.AddSingleton<NetTcpBindingFactoryGenerator>();
         services.AddSingleton<ProjectFileGenerator>();
         services.AddSingleton<NuGetPackageBuilder>();
@@ -51,6 +59,7 @@ public partial class App : Application
 
         services.AddSingleton<IFolderPickerService, FolderPickerService>();
         services.AddSingleton<IFilePickerService, FilePickerService>();
+        services.AddSingleton<IOpenAiSecretStore, PasswordVaultOpenAiSecretStore>();
         services.AddSingleton<ICopilotAuthenticationService, CopilotAuthenticationService>();
         services.AddSingleton<ICopilotConnectionService, CopilotConnectionService>();
         services.AddSingleton<IGeneratorWorkflowService, GeneratorWorkflowService>();

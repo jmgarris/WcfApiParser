@@ -91,6 +91,21 @@ public sealed class MainViewModelTests
         Assert.That(workflow.ObservedAnalyzeCancellationToken.IsCancellationRequested, Is.False);
     }
 
+    [Test]
+    public void SelectingOpenAiProvider_UpdatesProviderState()
+    {
+        var viewModel = CreateViewModel(new FakeGeneratorWorkflowService());
+
+        viewModel.SelectedDocumentationProvider = DocumentationProviderKind.OpenAI;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.EnableOpenAiComments, Is.True);
+            Assert.That(viewModel.IsOpenAiProviderSelected, Is.True);
+            Assert.That(viewModel.EnableCopilotComments, Is.False);
+        });
+    }
+
     private static MainViewModel CreateViewModel(FakeGeneratorWorkflowService workflow)
         => new(new FakeFolderPickerService(), new FakeFilePickerService(), workflow);
 
@@ -147,5 +162,12 @@ public sealed class MainViewModelTests
 
         public Task<CopilotConnectionTestResult> TestCopilotConnectionAsync(CopilotChatOptions options, CancellationToken cancellationToken)
             => Task.FromResult(new CopilotConnectionTestResult());
+
+        public Task<OpenAiConnectionTestResult> TestOpenAiConnectionAsync(OpenAiDocumentationOptions options, CancellationToken cancellationToken)
+            => Task.FromResult(new OpenAiConnectionTestResult());
+
+        public void ClearOpenAiDocumentationCache()
+        {
+        }
     }
 }

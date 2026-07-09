@@ -5,11 +5,11 @@ namespace WcfNetTcpClientGenerator.Core;
 
 public sealed class XmlDocumentationSanitizer
 {
-    public SanitizationResult Sanitize(string rawDocumentation, MethodDocumentationRequest request, int maxCommentLength)
+    public SanitizationResult Sanitize(string rawDocumentation, MethodDocumentationRequest request, int maxCommentLength, string providerName = "AI")
     {
         if (string.IsNullOrWhiteSpace(rawDocumentation))
         {
-            return Failure("The Copilot response was empty.", "EMPTY_RESPONSE");
+            return Failure($"The {providerName} response was empty.", "EMPTY_RESPONSE");
         }
 
         var normalized = rawDocumentation
@@ -26,7 +26,7 @@ public sealed class XmlDocumentationSanitizer
 
         if (lines.Count == 0)
         {
-            return Failure("The Copilot response did not contain documentation lines.", "EMPTY_LINES");
+            return Failure($"The {providerName} response did not contain documentation lines.", "EMPTY_LINES");
         }
 
         var xmlLines = new List<string>();
@@ -47,13 +47,13 @@ public sealed class XmlDocumentationSanitizer
 
         if (xmlLines.Count == 0)
         {
-            return Failure("The Copilot response did not contain XML documentation tags.", "MISSING_XML_TAGS");
+            return Failure($"The {providerName} response did not contain XML documentation tags.", "MISSING_XML_TAGS");
         }
 
         var xmlFragment = string.Join(Environment.NewLine, xmlLines);
         if (ContainsForbiddenContent(xmlFragment))
         {
-            return Failure("The Copilot response contained forbidden or unrelated content.", "FORBIDDEN_CONTENT");
+            return Failure($"The {providerName} response contained forbidden or unrelated content.", "FORBIDDEN_CONTENT");
         }
 
         try
@@ -66,7 +66,7 @@ public sealed class XmlDocumentationSanitizer
 
             if (rebuiltLines.Count == 0)
             {
-                return Failure("The Copilot response did not contain any valid XML documentation elements.", "NO_XML_ELEMENTS");
+                return Failure($"The {providerName} response did not contain any valid XML documentation elements.", "NO_XML_ELEMENTS");
             }
 
             var sanitizedText = string.Join(Environment.NewLine, rebuiltLines);
@@ -79,7 +79,7 @@ public sealed class XmlDocumentationSanitizer
         }
         catch (Exception exception)
         {
-            return Failure($"The Copilot response contained invalid XML documentation. {exception.Message}", "INVALID_XML");
+            return Failure($"The {providerName} response contained invalid XML documentation. {exception.Message}", "INVALID_XML");
         }
     }
 

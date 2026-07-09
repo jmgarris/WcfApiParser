@@ -9,16 +9,32 @@ public sealed class MethodDocumentationCache
 {
     private readonly ConcurrentDictionary<string, MethodDocumentationResult> _cache = new(StringComparer.Ordinal);
 
-    public bool TryGet(MethodDocumentationRequest request, out MethodDocumentationResult? result)
-        => _cache.TryGetValue(CreateStableHash(request), out result);
+    public bool TryGet(string cacheKey, out MethodDocumentationResult? result)
+        => _cache.TryGetValue(cacheKey, out result);
 
-    public void Set(MethodDocumentationRequest request, MethodDocumentationResult result)
-        => _cache[CreateStableHash(request)] = result;
+    public void Set(string cacheKey, MethodDocumentationResult result)
+        => _cache[cacheKey] = result;
 
-    internal static string CreateStableHash(MethodDocumentationRequest request)
+    public void Clear()
+        => _cache.Clear();
+
+    public void ClearByPrefix(string prefix)
+    {
+        var keysToRemove = _cache.Keys
+            .Where(key => key.StartsWith(prefix, StringComparison.Ordinal))
+            .ToList();
+
+        foreach (var key in keysToRemove)
+        {
+            _cache.TryRemove(key, out _);
+        }
+    }
+
+    internal static string CreateStableHash(MethodDocumentationRequest request, params string[] keyParts)
     {
         var serialized = JsonSerializer.Serialize(new
         {
+            KeyParts = keyParts,
             request.ServiceName,
             request.OperationName,
             request.GeneratedWrapperMethodName,

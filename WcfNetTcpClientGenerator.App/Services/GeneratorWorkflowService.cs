@@ -10,8 +10,11 @@ public sealed class GeneratorWorkflowService : IGeneratorWorkflowService
     private readonly DotNetSvcUtilRunner _dotNetSvcUtilRunner;
     private readonly NullMethodDocumentationProvider _nullDocumentationProvider;
     private readonly CopilotMethodDocumentationProvider _copilotMethodDocumentationProvider;
+    private readonly OpenAiMethodDocumentationProvider _openAiMethodDocumentationProvider;
     private readonly ICopilotAuthenticationService _copilotAuthenticationService;
     private readonly ICopilotConnectionService _copilotConnectionService;
+    private readonly OpenAiConnectionTester _openAiConnectionTester;
+    private readonly MethodDocumentationCache _methodDocumentationCache;
 
     public GeneratorWorkflowService(
         WcfMetadataReader metadataReader,
@@ -20,8 +23,11 @@ public sealed class GeneratorWorkflowService : IGeneratorWorkflowService
         DotNetSvcUtilRunner dotNetSvcUtilRunner,
         NullMethodDocumentationProvider nullDocumentationProvider,
         CopilotMethodDocumentationProvider copilotMethodDocumentationProvider,
+        OpenAiMethodDocumentationProvider openAiMethodDocumentationProvider,
         ICopilotAuthenticationService copilotAuthenticationService,
-        ICopilotConnectionService copilotConnectionService)
+        ICopilotConnectionService copilotConnectionService,
+        OpenAiConnectionTester openAiConnectionTester,
+        MethodDocumentationCache methodDocumentationCache)
     {
         _metadataReader = metadataReader;
         _clientLibraryGenerator = clientLibraryGenerator;
@@ -29,8 +35,11 @@ public sealed class GeneratorWorkflowService : IGeneratorWorkflowService
         _dotNetSvcUtilRunner = dotNetSvcUtilRunner;
         _nullDocumentationProvider = nullDocumentationProvider;
         _copilotMethodDocumentationProvider = copilotMethodDocumentationProvider;
+        _openAiMethodDocumentationProvider = openAiMethodDocumentationProvider;
         _copilotAuthenticationService = copilotAuthenticationService;
         _copilotConnectionService = copilotConnectionService;
+        _openAiConnectionTester = openAiConnectionTester;
+        _methodDocumentationCache = methodDocumentationCache;
     }
 
     public Task<MetadataReadResult> AnalyzeAsync(WcfMetadataDiscoveryOptions options, CancellationToken cancellationToken)
@@ -38,9 +47,12 @@ public sealed class GeneratorWorkflowService : IGeneratorWorkflowService
 
     public Task<GenerationResult> GenerateAsync(ClientLibraryGenerationOptions options, CancellationToken cancellationToken)
     {
-        IMethodDocumentationProvider selectedDocumentationProvider = options.DocumentationOptions.EnableCopilotComments
-            ? _copilotMethodDocumentationProvider
-            : _nullDocumentationProvider;
+        IMethodDocumentationProvider selectedDocumentationProvider = options.DocumentationOptions.ProviderKind switch
+        {
+            DocumentationProviderKind.Microsoft365Copilot => _copilotMethodDocumentationProvider,
+            DocumentationProviderKind.OpenAI => _openAiMethodDocumentationProvider,
+            _ => _nullDocumentationProvider
+        };
 
         var effectiveOptions = new ClientLibraryGenerationOptions
         {
@@ -86,4 +98,10 @@ public sealed class GeneratorWorkflowService : IGeneratorWorkflowService
 
     public Task<CopilotConnectionTestResult> TestCopilotConnectionAsync(CopilotChatOptions options, CancellationToken cancellationToken)
         => _copilotConnectionService.TestConnectionAsync(options, cancellationToken);
+
+    public Task<OpenAiConnectionTestResult> TestOpenAiConnectionAsync(OpenAiDocumentationOptions options, CancellationToken cancellationToken)
+        => _openAiConnectionTester.TestConnectionAsync(options, cancellationToken);
+
+    public void ClearOpenAiDocumentationCache()
+        => _methodDocumentationCache.ClearByPrefix("OpenAI|");
 }

@@ -38,6 +38,8 @@ public partial class MainViewModel : ObservableObject
         SignInToCopilotCommand = new AsyncRelayCommand(SignInToCopilotAsync);
         SignOutOfCopilotCommand = new AsyncRelayCommand(SignOutOfCopilotAsync);
         TestCopilotConnectionCommand = new AsyncRelayCommand(TestCopilotConnectionAsync);
+        TestOpenAiConnectionCommand = new AsyncRelayCommand(TestOpenAiConnectionAsync);
+        ClearOpenAiCachedCommentsCommand = new RelayCommand(ClearOpenAiCachedComments);
         RegenerateCommentsCommand = new RelayCommand(RequestCommentRegeneration);
         ClearStatusCommand = new RelayCommand(ClearStatus);
     }
@@ -62,6 +64,19 @@ public partial class MainViewModel : ObservableObject
         "UserName"
     ];
 
+    public IReadOnlyList<SelectionOption<DocumentationProviderKind>> DocumentationProviders { get; } =
+    [
+        new SelectionOption<DocumentationProviderKind> { Value = DocumentationProviderKind.LocalFallback, Label = "Local fallback only" },
+        new SelectionOption<DocumentationProviderKind> { Value = DocumentationProviderKind.Microsoft365Copilot, Label = "Microsoft 365 Copilot" },
+        new SelectionOption<DocumentationProviderKind> { Value = DocumentationProviderKind.OpenAI, Label = "OpenAI" }
+    ];
+
+    public IReadOnlyList<SelectionOption<OpenAiApiKeySource>> OpenAiApiKeySources { get; } =
+    [
+        new SelectionOption<OpenAiApiKeySource> { Value = OpenAiApiKeySource.EnvironmentVariable, Label = "Environment variable" },
+        new SelectionOption<OpenAiApiKeySource> { Value = OpenAiApiKeySource.UserEnteredKey, Label = "User-entered key" }
+    ];
+
     public IAsyncRelayCommand AnalyzeServiceMetadataCommand { get; }
 
     public IAsyncRelayCommand GenerateClassLibraryCommand { get; }
@@ -79,6 +94,10 @@ public partial class MainViewModel : ObservableObject
     public IAsyncRelayCommand SignOutOfCopilotCommand { get; }
 
     public IAsyncRelayCommand TestCopilotConnectionCommand { get; }
+
+    public IAsyncRelayCommand TestOpenAiConnectionCommand { get; }
+
+    public IRelayCommand ClearOpenAiCachedCommentsCommand { get; }
 
     public IRelayCommand RegenerateCommentsCommand { get; }
 
@@ -148,7 +167,7 @@ public partial class MainViewModel : ObservableObject
     private int progressPercentage;
 
     [ObservableProperty]
-    private bool enableCopilotComments;
+    private DocumentationProviderKind selectedDocumentationProvider = DocumentationProviderKind.LocalFallback;
 
     [ObservableProperty]
     private string copilotTenantId = string.Empty;
@@ -182,6 +201,71 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private string signedInAccount = string.Empty;
+
+    [ObservableProperty]
+    private OpenAiApiKeySource selectedOpenAiApiKeySource = OpenAiApiKeySource.EnvironmentVariable;
+
+    [ObservableProperty]
+    private string openAiApiKeyEnvironmentVariableName = "OPENAI_API_KEY";
+
+    [ObservableProperty]
+    private string openAiApiKey = string.Empty;
+
+    [ObservableProperty]
+    private string openAiModelName = "gpt-5.6";
+
+    [ObservableProperty]
+    private string openAiMaxOutputTokens = "600";
+
+    [ObservableProperty]
+    private string openAiTemperature = "0.2";
+
+    [ObservableProperty]
+    private string openAiTimeoutSeconds = "30";
+
+    [ObservableProperty]
+    private string openAiRetryCount = "2";
+
+    [ObservableProperty]
+    private string openAiStatusText = "OpenAI comments are disabled.";
+
+    public bool EnableCopilotComments
+    {
+        get => SelectedDocumentationProvider == DocumentationProviderKind.Microsoft365Copilot;
+        set
+        {
+            if (value)
+            {
+                SelectedDocumentationProvider = DocumentationProviderKind.Microsoft365Copilot;
+            }
+            else if (SelectedDocumentationProvider == DocumentationProviderKind.Microsoft365Copilot)
+            {
+                SelectedDocumentationProvider = DocumentationProviderKind.LocalFallback;
+            }
+        }
+    }
+
+    public bool EnableOpenAiComments
+    {
+        get => SelectedDocumentationProvider == DocumentationProviderKind.OpenAI;
+        set
+        {
+            if (value)
+            {
+                SelectedDocumentationProvider = DocumentationProviderKind.OpenAI;
+            }
+            else if (SelectedDocumentationProvider == DocumentationProviderKind.OpenAI)
+            {
+                SelectedDocumentationProvider = DocumentationProviderKind.LocalFallback;
+            }
+        }
+    }
+
+    public bool IsCopilotProviderSelected => SelectedDocumentationProvider == DocumentationProviderKind.Microsoft365Copilot;
+
+    public bool IsOpenAiProviderSelected => SelectedDocumentationProvider == DocumentationProviderKind.OpenAI;
+
+    public bool IsUserEnteredOpenAiKeySelected => SelectedOpenAiApiKeySource == OpenAiApiKeySource.UserEnteredKey;
 
     private async Task BrowseOutputFolderAsync()
     {
@@ -254,6 +338,7 @@ public partial class MainViewModel : ObservableObject
         BusyMessage = "Generating class library...";
         ProgressPercentage = 50;
         AddStatus("Info", "Generating client library.");
+        AnnounceDocumentationProvider();
 
         var result = await _workflowService.GenerateAsync(BuildGenerationOptions(), CancellationToken.None);
         PopulateFromGenerationResult(result);
@@ -331,7 +416,26 @@ public partial class MainViewModel : ObservableObject
     private void RequestCommentRegeneration()
     {
         _regenerateCommentsRequested = true;
-        AddStatus("Info", "The next generation run will bypass the documentation cache and regenerate Copilot comments.");
+        AddStatus("Info", "The next generation run will bypass the documentation cache and regenerate AI documentation comments.");
+    }
+
+    private async Task TestOpenAiConnectionAsync()
+    {
+        BusyMessage = "Testing OpenAI connection...";
+        ProgressPercentage = 20;
+        AddStatus("Info", "Testing OpenAI connectivity.");
+
+        var result = await _workflowService.TestOpenAiConnectionAsync(BuildOpenAiDocumentationOptions(), CancellationToken.None);
+        ApplyOpenAiConnectionResult(result);
+
+        ProgressPercentage = 0;
+        BusyMessage = string.Empty;
+    }
+
+    private void ClearOpenAiCachedComments()
+    {
+        _workflowService.ClearOpenAiDocumentationCache();
+        AddStatus("Info", "Cleared cached OpenAI documentation comments.");
     }
 
     private WcfMetadataDiscoveryOptions BuildDiscoveryOptions()
@@ -369,13 +473,18 @@ public partial class MainViewModel : ObservableObject
     private MethodDocumentationOptions BuildMethodDocumentationOptions()
         => new()
         {
-            EnableCopilotComments = EnableCopilotComments,
+            ProviderKind = SelectedDocumentationProvider,
             CopilotChat = BuildCopilotChatOptions(),
+            OpenAi = BuildOpenAiDocumentationOptions(),
             CacheGeneratedComments = CacheGeneratedComments,
             RegenerateComments = _regenerateCommentsRequested,
             MaxCommentLength = ParsePositiveInt(CopilotMaxCommentLength, 600),
-            Timeout = TimeSpan.FromSeconds(ParsePositiveInt(CopilotTimeoutSeconds, 30)),
-            RetryCount = ParseNonNegativeInt(CopilotRetryCount, 2)
+            Timeout = TimeSpan.FromSeconds(SelectedDocumentationProvider == DocumentationProviderKind.OpenAI
+                ? ParsePositiveInt(OpenAiTimeoutSeconds, 30)
+                : ParsePositiveInt(CopilotTimeoutSeconds, 30)),
+            RetryCount = SelectedDocumentationProvider == DocumentationProviderKind.OpenAI
+                ? ParseNonNegativeInt(OpenAiRetryCount, 2)
+                : ParseNonNegativeInt(CopilotRetryCount, 2)
         };
 
     private CopilotChatOptions BuildCopilotChatOptions()
@@ -389,6 +498,17 @@ public partial class MainViewModel : ObservableObject
                 .ToArray(),
             UseInteractiveSignIn = CopilotUseInteractiveSignIn,
             DisableWebGrounding = CopilotDisableWebGrounding
+        };
+
+    private OpenAiDocumentationOptions BuildOpenAiDocumentationOptions()
+        => new()
+        {
+            ApiKeySource = SelectedOpenAiApiKeySource,
+            ApiKeyEnvironmentVariableName = OpenAiApiKeyEnvironmentVariableName,
+            UserEnteredApiKey = OpenAiApiKey,
+            ModelName = OpenAiModelName,
+            MaxOutputTokens = ParsePositiveInt(OpenAiMaxOutputTokens, 600),
+            Temperature = ParseDouble(OpenAiTemperature, 0.2d)
         };
 
     private void PopulateFromMetadataResult(MetadataReadResult result)
@@ -459,6 +579,21 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private void ApplyOpenAiConnectionResult(OpenAiConnectionTestResult result)
+    {
+        OpenAiStatusText = result.StatusText;
+
+        foreach (var diagnostic in result.Diagnostics)
+        {
+            AddStatus(diagnostic.Severity, diagnostic.Message);
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.StatusText))
+        {
+            AddStatus(result.Success ? "Info" : "Warning", result.StatusText);
+        }
+    }
+
     private void AddStatus(string severity, string message)
     {
         UpdateStatusMessages(statusMessages =>
@@ -516,4 +651,48 @@ public partial class MainViewModel : ObservableObject
         => int.TryParse(value, out var parsed) && parsed >= 0
             ? parsed
             : fallback;
+
+    private static double ParseDouble(string value, double fallback)
+        => double.TryParse(value, out var parsed)
+            ? parsed
+            : fallback;
+
+    private void AnnounceDocumentationProvider()
+    {
+        switch (SelectedDocumentationProvider)
+        {
+            case DocumentationProviderKind.Microsoft365Copilot:
+                AddStatus("Info", "Copilot comments enabled.");
+                break;
+            case DocumentationProviderKind.OpenAI:
+                AddStatus("Info", "OpenAI comments enabled.");
+                if (SelectedOpenAiApiKeySource == OpenAiApiKeySource.EnvironmentVariable)
+                {
+                    AddStatus("Info", "Reading OpenAI API key from environment variable.");
+                }
+
+                break;
+        }
+    }
+
+    partial void OnSelectedDocumentationProviderChanged(DocumentationProviderKind value)
+    {
+        OnPropertyChanged(nameof(EnableCopilotComments));
+        OnPropertyChanged(nameof(EnableOpenAiComments));
+        OnPropertyChanged(nameof(IsCopilotProviderSelected));
+        OnPropertyChanged(nameof(IsOpenAiProviderSelected));
+
+        CopilotStatusText = value == DocumentationProviderKind.Microsoft365Copilot
+            ? "Copilot comments are enabled."
+            : "Copilot comments are disabled.";
+
+        OpenAiStatusText = value == DocumentationProviderKind.OpenAI
+            ? "OpenAI comments are enabled."
+            : "OpenAI comments are disabled.";
+    }
+
+    partial void OnSelectedOpenAiApiKeySourceChanged(OpenAiApiKeySource value)
+    {
+        OnPropertyChanged(nameof(IsUserEnteredOpenAiKeySelected));
+    }
 }

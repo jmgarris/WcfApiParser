@@ -89,6 +89,7 @@ public sealed class GeneratorTests
             Assert.That(source, Does.Contain("CloseClient(client);"));
             Assert.That(source, Does.Contain("NetTcpBindingFactory.Create(_options)"));
             Assert.That(source, Does.Contain("/// <summary>"));
+            Assert.That(source, Does.Not.Contain("XML documentation comments may have been AI-assisted."));
         });
     }
 
@@ -124,6 +125,26 @@ public sealed class GeneratorTests
             Assert.That(result.Source, Does.Contain("GetCustomer("));
             Assert.That(result.Diagnostics.Any(static diagnostic => diagnostic.Code == "DOCUMENTATION_PROVIDER_FAILED"), Is.True);
         });
+    }
+
+    [Test]
+    public async Task WrapperGenerator_AddsAiHeaderForAiProviders()
+    {
+        var generator = new WrapperImplementationGenerator();
+        var result = await generator.GenerateAsync(
+            CreateMetadata().Contracts.Single(),
+            "Contoso.CustomerClient",
+            new ClientLibraryGenerationOptions
+            {
+                DocumentationOptions = new MethodDocumentationOptions
+                {
+                    ProviderKind = DocumentationProviderKind.OpenAI
+                }
+            },
+            new NullMethodDocumentationProvider(),
+            CancellationToken.None);
+
+        Assert.That(result.Source, Does.Contain("XML documentation comments may have been AI-assisted."));
     }
 
     [Test]
@@ -201,6 +222,8 @@ public sealed class GeneratorTests
             Assert.That(generationResult.ProjectFilePath, Is.Not.Null);
             var generatedSource = await File.ReadAllTextAsync(Path.Combine(generationResult.OutputDirectory!, "Services", "CustomerServiceClient.cs"));
             Assert.That(generatedSource, Does.Contain("/// <summary>"));
+            var generatedProjectFile = await File.ReadAllTextAsync(generationResult.ProjectFilePath!);
+            Assert.That(generatedProjectFile, Does.Not.Contain("OpenAI"));
 
             var packResult = await new NuGetPackageBuilder().BuildAsync(generationResult.ProjectFilePath!, CancellationToken.None);
 

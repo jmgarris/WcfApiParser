@@ -2,7 +2,7 @@ namespace WcfNetTcpClientGenerator.Core;
 
 public sealed class MethodDocumentationOptions
 {
-    public bool EnableCopilotComments { get; init; }
+    public DocumentationProviderKind ProviderKind { get; init; } = DocumentationProviderKind.LocalFallback;
 
     public int MaxCommentLength { get; init; } = 600;
 
@@ -15,4 +15,9 @@ public sealed class MethodDocumentationOptions
     public bool RegenerateComments { get; init; }
 
     public CopilotChatOptions CopilotChat { get; init; } = new();
+
+    public OpenAiDocumentationOptions OpenAi { get; init; } = new();
+
+    public bool UsesAiProvider
+        => ProviderKind is DocumentationProviderKind.Microsoft365Copilot or DocumentationProviderKind.OpenAI;
 }

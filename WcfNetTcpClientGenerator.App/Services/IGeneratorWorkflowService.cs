@@ -17,4 +17,8 @@ public interface IGeneratorWorkflowService
     Task<CopilotConnectionTestResult> SignOutOfCopilotAsync(CancellationToken cancellationToken);
 
     Task<CopilotConnectionTestResult> TestCopilotConnectionAsync(CopilotChatOptions options, CancellationToken cancellationToken);
+
+    Task<OpenAiConnectionTestResult> TestOpenAiConnectionAsync(OpenAiDocumentationOptions options, CancellationToken cancellationToken);
+
+    void ClearOpenAiDocumentationCache();
 }

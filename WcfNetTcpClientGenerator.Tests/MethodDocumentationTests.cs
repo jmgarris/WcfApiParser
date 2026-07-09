@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using WcfNetTcpClientGenerator.App.Services;
 using WcfNetTcpClientGenerator.Core;
 
 namespace WcfNetTcpClientGenerator.Tests;
@@ -34,6 +35,21 @@ public sealed class MethodDocumentationTests
     public void PromptBuilder_DoesNotIncludeCredentials()
     {
         var prompt = new DocumentationPromptBuilder().BuildPrompt(CreateRequest());
+        Assert.That(prompt, Does.Not.Contain("password").IgnoreCase);
+        Assert.That(prompt, Does.Not.Contain("secret").IgnoreCase);
+    }
+
+    [Test]
+    public void OpenAiPrompt_IncludesMethodSignature()
+    {
+        var prompt = new OpenAiPromptBuilder().BuildPrompt(CreateRequest());
+        Assert.That(prompt, Does.Contain("Generated method signature: global::System.Threading.Tasks.Task<global::Contoso.Contracts.CustomerResponse> GetCustomerAsync(global::Contoso.Contracts.GetCustomerRequest request, global::System.Threading.CancellationToken cancellationToken)"));
+    }
+
+    [Test]
+    public void OpenAiPrompt_DoesNotIncludeCredentials()
+    {
+        var prompt = new OpenAiPromptBuilder().BuildPrompt(CreateRequest());
         Assert.That(prompt, Does.Not.Contain("password").IgnoreCase);
         Assert.That(prompt, Does.Not.Contain("secret").IgnoreCase);
     }
@@ -99,7 +115,7 @@ public sealed class MethodDocumentationTests
     [Test]
     public async Task CopilotProvider_HandlesUnauthorizedResponse()
     {
-        var provider = CreateProvider(
+        var provider = CreateCopilotProvider(
             new FakeTokenProvider(),
             new SequenceHandler(
                 new HttpResponseMessage(HttpStatusCode.OK)
@@ -111,7 +127,7 @@ public sealed class MethodDocumentationTests
                     Content = JsonContent("""{"error":"unauthorized"}""")
                 }));
 
-        var result = await provider.GenerateDocumentationAsync(CreateRequest(), EnabledOptions(), CancellationToken.None);
+        var result = await provider.GenerateDocumentationAsync(CreateRequest(), CopilotOptions(), CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -124,7 +140,7 @@ public sealed class MethodDocumentationTests
     [Test]
     public async Task CopilotProvider_HandlesThrottlingResponse()
     {
-        var provider = CreateProvider(
+        var provider = CreateCopilotProvider(
             new FakeTokenProvider(),
             new SequenceHandler(
                 new HttpResponseMessage(HttpStatusCode.OK)
@@ -140,7 +156,7 @@ public sealed class MethodDocumentationTests
                     Content = JsonContent("""{"content":"<summary>Loads a customer.</summary><param name=\"request\">Request payload.</param><param name=\"cancellationToken\">Cancellation.</param><returns>A response.</returns>"}""")
                 }));
 
-        var result = await provider.GenerateDocumentationAsync(CreateRequest(), EnabledOptions(), CancellationToken.None);
+        var result = await provider.GenerateDocumentationAsync(CreateRequest(), CopilotOptions(), CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -151,56 +167,299 @@ public sealed class MethodDocumentationTests
     }
 
     [Test]
-    public async Task CopilotProvider_HandlesInvalidAiOutput()
+    public async Task OpenAiProvider_SelectedThroughSettings_GeneratesAiComments()
     {
-        var provider = CreateProvider(
-            new FakeTokenProvider(),
+        var provider = CreateOpenAiProvider(
+            new FakeOpenAiApiKeyProvider(),
             new SequenceHandler(
                 new HttpResponseMessage(HttpStatusCode.OK)
                 {
-                    Content = JsonContent("""{"id":"conversation-1"}""")
-                },
-                new HttpResponseMessage(HttpStatusCode.OK)
-                {
-                    Content = JsonContent("""{"content":"```xml\n<summary>broken\n```"}""")
+                    Content = JsonContent(ResponseWithOutputText("""{"summary":"Calls the operation.","parameters":[{"name":"request","description":"Request payload."},{"name":"cancellationToken","description":"Cancellation."}],"returns":"A response.","exceptions":[{"type":"CommunicationException","description":"Communication failure."}],"remarks":""}"""))
                 }));
 
-        var result = await provider.GenerateDocumentationAsync(CreateRequest(), EnabledOptions(), CancellationToken.None);
+        var result = await provider.GenerateDocumentationAsync(CreateRequest(), OpenAiOptions(), CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.WasGeneratedByAi, Is.True);
+            Assert.That(result.XmlDocumentationText, Does.Contain("/// <summary>"));
+        });
+    }
+
+    [Test]
+    public async Task ApiKeyLoadedFromEnvironmentVariable()
+    {
+        const string variableName = "OPENAI_API_KEY";
+        var originalValue = Environment.GetEnvironmentVariable(variableName);
+
+        try
+        {
+            Environment.SetEnvironmentVariable(variableName, "test-key");
+            var provider = new OpenAiApiKeyProvider(new FakeOpenAiSecretStore());
+            var result = await provider.ResolveApiKeyAsync(new OpenAiDocumentationOptions(), CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.True);
+                Assert.That(result.ApiKey, Is.EqualTo("test-key"));
+                Assert.That(result.SourceDescription, Is.EqualTo("Reading OpenAI API key from environment variable."));
+            });
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(variableName, originalValue);
+        }
+    }
+
+    [Test]
+    public async Task MissingApiKeyProducesClearDiagnostic()
+    {
+        const string variableName = "OPENAI_API_KEY";
+        var originalValue = Environment.GetEnvironmentVariable(variableName);
+
+        try
+        {
+            Environment.SetEnvironmentVariable(variableName, null);
+            var provider = new OpenAiApiKeyProvider(new FakeOpenAiSecretStore());
+            var result = await provider.ResolveApiKeyAsync(new OpenAiDocumentationOptions(), CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Diagnostics.Single().Code, Is.EqualTo("OPENAI_API_KEY_MISSING"));
+            });
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(variableName, originalValue);
+        }
+    }
+
+    [Test]
+    public async Task StructuredOpenAiResponse_ConvertsToValidXmlDocumentationComments()
+    {
+        var provider = CreateOpenAiProvider(
+            new FakeOpenAiApiKeyProvider(),
+            new SequenceHandler(
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent(ResponseWithOutputText("""{"summary":"Calls the GetCustomer operation on the configured WCF net.tcp service.","parameters":[{"name":"request","description":"The request payload for the GetCustomer operation."},{"name":"cancellationToken","description":"A token used to observe cancellation requests."}],"returns":"A task that represents the asynchronous operation. The task result contains the service response.","exceptions":[{"type":"CommunicationException","description":"Thrown when the communication channel faults."},{"type":"TimeoutException","description":"Thrown when the operation times out."}],"remarks":"Review the generated wrapper behavior against the target service."}"""))
+                }));
+
+        var result = await provider.GenerateDocumentationAsync(CreateRequest(), OpenAiOptions(), CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.XmlDocumentationText, Does.Contain("/// <summary>"));
+            Assert.That(result.XmlDocumentationText, Does.Contain("/// <exception cref=\"CommunicationException\">"));
+            Assert.That(result.XmlDocumentationText, Does.Contain("/// <remarks>"));
+        });
+    }
+
+    [Test]
+    public async Task InvalidStructuredResponse_FallsBackToLocalComments()
+    {
+        var provider = CreateOpenAiProvider(
+            new FakeOpenAiApiKeyProvider(),
+            new SequenceHandler(
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent(ResponseWithOutputText("""{"summary":"","parameters":[],"returns":"","exceptions":[],"remarks":""}"""))
+                }));
+
+        var result = await provider.GenerateDocumentationAsync(CreateRequest(), OpenAiOptions(), CancellationToken.None);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.True);
             Assert.That(result.WasGeneratedByAi, Is.False);
-            Assert.That(result.Diagnostics.Any(static diagnostic => diagnostic.Code == "INVALID_XML"), Is.True);
+            Assert.That(result.Diagnostics.Any(static diagnostic => diagnostic.Code == "OPENAI_INVALID_STRUCTURED_RESPONSE"), Is.True);
         });
     }
 
     [Test]
-    public async Task CopilotProvider_FallsBackWithoutFailingGeneration()
+    public async Task UnknownParameterNames_AreRemoved()
     {
-        var provider = CreateProvider(
-            new FakeTokenProvider(),
+        var provider = CreateOpenAiProvider(
+            new FakeOpenAiApiKeyProvider(),
             new SequenceHandler(
                 new HttpResponseMessage(HttpStatusCode.OK)
                 {
-                    Content = JsonContent("""{"id":"conversation-1"}""")
-                },
-                new HttpResponseMessage(HttpStatusCode.Forbidden)
-                {
-                    Content = JsonContent("""{"error":"forbidden"}""")
+                    Content = JsonContent(ResponseWithOutputText("""{"summary":"Calls the operation.","parameters":[{"name":"request","description":"Request payload."},{"name":"unexpected","description":"Should be dropped."}],"returns":"A response.","exceptions":[],"remarks":""}"""))
                 }));
 
-        var result = await provider.GenerateDocumentationAsync(CreateRequest(), EnabledOptions(), CancellationToken.None);
+        var result = await provider.GenerateDocumentationAsync(CreateRequest(), OpenAiOptions(), CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.XmlDocumentationText, Does.Contain("name=\"request\""));
+            Assert.That(result.XmlDocumentationText, Does.Not.Contain("unexpected"));
+            Assert.That(result.Diagnostics.Any(static diagnostic => diagnostic.Code == "OPENAI_UNKNOWN_PARAMETER_REMOVED"), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task XmlSpecialCharacters_AreEscaped()
+    {
+        var provider = CreateOpenAiProvider(
+            new FakeOpenAiApiKeyProvider(),
+            new SequenceHandler(
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent(ResponseWithOutputText("""{"summary":"Calls <GetCustomer> & validates input.","parameters":[{"name":"request","description":"Contains <criteria> & filters."},{"name":"cancellationToken","description":"Supports cancellation."}],"returns":"A response & status.","exceptions":[],"remarks":""}"""))
+                }));
+
+        var result = await provider.GenerateDocumentationAsync(CreateRequest(), OpenAiOptions(), CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.XmlDocumentationText, Does.Contain("&lt;GetCustomer&gt;"));
+            Assert.That(result.XmlDocumentationText, Does.Contain("&amp;"));
+        });
+    }
+
+    [Test]
+    public async Task MarkdownOutput_IsRejected()
+    {
+        var provider = CreateOpenAiProvider(
+            new FakeOpenAiApiKeyProvider(),
+            new SequenceHandler(
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent(ResponseWithOutputText("```json { } ```"))
+                }));
+
+        var result = await provider.GenerateDocumentationAsync(CreateRequest(), OpenAiOptions(), CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.WasGeneratedByAi, Is.False);
+            Assert.That(result.Diagnostics.Any(static diagnostic => diagnostic.Code == "OPENAI_FALLBACK"), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task GeneratedCSharpCodeOutput_IsRejected()
+    {
+        var provider = CreateOpenAiProvider(
+            new FakeOpenAiApiKeyProvider(),
+            new SequenceHandler(
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = JsonContent(ResponseWithOutputText("""namespace Example { public class Bad {} }"""))
+                }));
+
+        var result = await provider.GenerateDocumentationAsync(CreateRequest(), OpenAiOptions(), CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.WasGeneratedByAi, Is.False);
+            Assert.That(result.Diagnostics.Any(static diagnostic => diagnostic.Code == "OPENAI_FALLBACK"), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task UnauthorizedResponse_FallsBackWithoutFailingGeneration()
+    {
+        var provider = CreateOpenAiProvider(
+            new FakeOpenAiApiKeyProvider(),
+            new SequenceHandler(
+                new HttpResponseMessage(HttpStatusCode.Unauthorized)
+                {
+                    Content = JsonContent("""{"error":"unauthorized"}""")
+                }));
+
+        var result = await provider.GenerateDocumentationAsync(CreateRequest(), OpenAiOptions(), CancellationToken.None);
 
         Assert.Multiple(() =>
         {
             Assert.That(result.Success, Is.True);
-            Assert.That(result.XmlDocumentationText, Does.Contain("Calls the GetCustomer operation"));
-            Assert.That(result.Diagnostics.Any(static diagnostic => diagnostic.Code == "COPILOT_FALLBACK"), Is.True);
+            Assert.That(result.WasGeneratedByAi, Is.False);
+            Assert.That(result.Diagnostics.Any(static diagnostic => diagnostic.Code == "OPENAI_UNAUTHORIZED"), Is.True);
         });
     }
 
-    private static CopilotMethodDocumentationProvider CreateProvider(IGraphAccessTokenProvider tokenProvider, HttpMessageHandler handler)
+    [Test]
+    public async Task RateLimitResponse_FallsBackWithoutFailingGeneration()
+    {
+        var provider = CreateOpenAiProvider(
+            new FakeOpenAiApiKeyProvider(),
+            new SequenceHandler(
+                new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+                {
+                    Content = JsonContent("""{"error":"rate limited"}""")
+                },
+                new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+                {
+                    Content = JsonContent("""{"error":"rate limited"}""")
+                },
+                new HttpResponseMessage(HttpStatusCode.TooManyRequests)
+                {
+                    Content = JsonContent("""{"error":"rate limited"}""")
+                }));
+
+        var result = await provider.GenerateDocumentationAsync(CreateRequest(), OpenAiOptions(), CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.WasGeneratedByAi, Is.False);
+            Assert.That(result.Diagnostics.Any(static diagnostic => diagnostic.Code == "OPENAI_RETRY"), Is.True);
+            Assert.That(result.Diagnostics.Any(static diagnostic => diagnostic.Code == "OPENAI_FALLBACK"), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task Timeout_FallsBackWithoutFailingGeneration()
+    {
+        var provider = CreateOpenAiProvider(
+            new FakeOpenAiApiKeyProvider(),
+            new ThrowingHandler(new OperationCanceledException("timed out")));
+
+        var result = await provider.GenerateDocumentationAsync(CreateRequest(), OpenAiOptions(), CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.WasGeneratedByAi, Is.False);
+            Assert.That(result.Diagnostics.Any(static diagnostic => diagnostic.Code == "OPENAI_TIMEOUT"), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task CacheKeyChangesWhenMethodSignatureChanges()
+    {
+        var handler = new SequenceHandler(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent(ResponseWithOutputText("""{"summary":"First.","parameters":[{"name":"request","description":"Request."},{"name":"cancellationToken","description":"Cancellation."}],"returns":"A response.","exceptions":[],"remarks":""}"""))
+            },
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent(ResponseWithOutputText("""{"summary":"Second.","parameters":[{"name":"request","description":"Request."},{"name":"cancellationToken","description":"Cancellation."}],"returns":"A response.","exceptions":[],"remarks":""}"""))
+            });
+
+        var provider = CreateOpenAiProvider(new FakeOpenAiApiKeyProvider(), handler);
+        var firstRequest = CreateRequest();
+        var secondRequest = CreateRequest(
+            generatedMethodSignature: "global::System.Threading.Tasks.Task<global::Contoso.Contracts.CustomerResponse> GetCustomerAsync(global::Contoso.Contracts.GetCustomerRequest request, int version, global::System.Threading.CancellationToken cancellationToken)");
+
+        var firstResult = await provider.GenerateDocumentationAsync(firstRequest, OpenAiOptions(), CancellationToken.None);
+        var secondResult = await provider.GenerateDocumentationAsync(firstRequest, OpenAiOptions(), CancellationToken.None);
+        var thirdResult = await provider.GenerateDocumentationAsync(secondRequest, OpenAiOptions(), CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(firstResult.WasGeneratedByAi, Is.True);
+            Assert.That(secondResult.Diagnostics.Any(static diagnostic => diagnostic.Code == "OPENAI_CACHE_HIT"), Is.True);
+            Assert.That(thirdResult.Diagnostics.Any(static diagnostic => diagnostic.Code == "OPENAI_CACHE_HIT"), Is.False);
+            Assert.That(handler.RequestCount, Is.EqualTo(2));
+        });
+    }
+
+    private static CopilotMethodDocumentationProvider CreateCopilotProvider(IGraphAccessTokenProvider tokenProvider, HttpMessageHandler handler)
     {
         var httpClient = new HttpClient(handler);
         var chatClient = new CopilotChatClient(httpClient);
@@ -215,7 +474,19 @@ public sealed class MethodDocumentationTests
             new NullMethodDocumentationProvider());
     }
 
-    private static MethodDocumentationRequest CreateRequest()
+    private static OpenAiMethodDocumentationProvider CreateOpenAiProvider(IOpenAiApiKeyProvider apiKeyProvider, HttpMessageHandler handler)
+    {
+        var httpClient = new HttpClient(handler);
+        var client = new OpenAiDocumentationClient(httpClient, apiKeyProvider);
+        return new OpenAiMethodDocumentationProvider(
+            client,
+            new OpenAiPromptBuilder(),
+            new XmlDocumentationSanitizer(),
+            new MethodDocumentationCache(),
+            new NullMethodDocumentationProvider());
+    }
+
+    private static MethodDocumentationRequest CreateRequest(string? generatedMethodSignature = null)
         => new()
         {
             ServiceName = "CustomerService",
@@ -239,13 +510,13 @@ public sealed class MethodDocumentationTests
             ReturnType = "global::System.Threading.Tasks.Task<global::Contoso.Contracts.CustomerResponse>",
             WcfBindingType = "NetTcpBinding",
             IsAsync = true,
-            GeneratedMethodSignature = "global::System.Threading.Tasks.Task<global::Contoso.Contracts.CustomerResponse> GetCustomerAsync(global::Contoso.Contracts.GetCustomerRequest request, global::System.Threading.CancellationToken cancellationToken)"
+            GeneratedMethodSignature = generatedMethodSignature ?? "global::System.Threading.Tasks.Task<global::Contoso.Contracts.CustomerResponse> GetCustomerAsync(global::Contoso.Contracts.GetCustomerRequest request, global::System.Threading.CancellationToken cancellationToken)"
         };
 
-    private static MethodDocumentationOptions EnabledOptions()
+    private static MethodDocumentationOptions CopilotOptions()
         => new()
         {
-            EnableCopilotComments = true,
+            ProviderKind = DocumentationProviderKind.Microsoft365Copilot,
             RetryCount = 1,
             Timeout = TimeSpan.FromSeconds(5),
             MaxCommentLength = 1000,
@@ -256,8 +527,26 @@ public sealed class MethodDocumentationTests
             }
         };
 
+    private static MethodDocumentationOptions OpenAiOptions()
+        => new()
+        {
+            ProviderKind = DocumentationProviderKind.OpenAI,
+            RetryCount = 1,
+            Timeout = TimeSpan.FromSeconds(5),
+            MaxCommentLength = 1000,
+            OpenAi = new OpenAiDocumentationOptions
+            {
+                ModelName = "gpt-5.6",
+                MaxOutputTokens = 300,
+                Temperature = 0.2d
+            }
+        };
+
     private static StringContent JsonContent(string json)
         => new(json, Encoding.UTF8, "application/json");
+
+    private static string ResponseWithOutputText(string outputText)
+        => $$"""{"output_text":{{System.Text.Json.JsonSerializer.Serialize(outputText)}}}""";
 
     private sealed class FakeTokenProvider : IGraphAccessTokenProvider
     {
@@ -270,6 +559,37 @@ public sealed class MethodDocumentationTests
             });
     }
 
+    private sealed class FakeOpenAiApiKeyProvider : IOpenAiApiKeyProvider
+    {
+        public Task<OpenAiApiKeyResult> ResolveApiKeyAsync(OpenAiDocumentationOptions options, CancellationToken cancellationToken)
+            => Task.FromResult(new OpenAiApiKeyResult
+            {
+                Success = true,
+                ApiKey = "test-key",
+                SourceDescription = "Reading OpenAI API key from environment variable."
+            });
+    }
+
+    private sealed class FakeOpenAiSecretStore : IOpenAiSecretStore
+    {
+        private string? _apiKey;
+
+        public Task SaveApiKeyAsync(string apiKey, CancellationToken cancellationToken)
+        {
+            _apiKey = apiKey;
+            return Task.CompletedTask;
+        }
+
+        public Task<string?> GetApiKeyAsync(CancellationToken cancellationToken)
+            => Task.FromResult(_apiKey);
+
+        public Task ClearApiKeyAsync(CancellationToken cancellationToken)
+        {
+            _apiKey = null;
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class SequenceHandler : HttpMessageHandler
     {
         private readonly Queue<HttpResponseMessage> _responses;
@@ -279,7 +599,25 @@ public sealed class MethodDocumentationTests
             _responses = new Queue<HttpResponseMessage>(responses);
         }
 
+        public int RequestCount { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => Task.FromResult(_responses.Dequeue());
+        {
+            RequestCount++;
+            return Task.FromResult(_responses.Dequeue());
+        }
+    }
+
+    private sealed class ThrowingHandler : HttpMessageHandler
+    {
+        private readonly Exception _exception;
+
+        public ThrowingHandler(Exception exception)
+        {
+            _exception = exception;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromException<HttpResponseMessage>(_exception);
     }
 }
