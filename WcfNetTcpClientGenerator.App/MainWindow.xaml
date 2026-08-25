@@ -94,12 +94,12 @@
                 </StackPanel>
                 <CheckBox Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Content="Enable Swagger / API documentation" IsChecked="{Binding EnableSwagger, Mode=TwoWay}" Visibility="{Binding IsRestApiWrapperSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
-                <StackPanel Grid.Row="3" Grid.Column="0" Spacing="6">
+                <StackPanel Grid.Row="3" Grid.Column="0" Spacing="6" Visibility="{Binding IsClientLibrarySelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock Text="NuGet package ID" />
                     <TextBox Text="{Binding PackageId, Mode=TwoWay}" PlaceholderText="Contoso.CustomerClient" />
                 </StackPanel>
 
-                <StackPanel Grid.Row="3" Grid.Column="1" Spacing="6">
+                <StackPanel Grid.Row="3" Grid.Column="1" Spacing="6" Visibility="{Binding IsClientLibrarySelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock Text="NuGet package version" />
                     <TextBox Text="{Binding PackageVersion, Mode=TwoWay}" PlaceholderText="1.0.0" />
                 </StackPanel>
@@ -134,8 +134,13 @@
                 </StackPanel>
 
                 <StackPanel Grid.Row="6" Grid.Column="1" Spacing="6">
-                    <TextBlock Text="TCP client credential type" />
-                    <ComboBox ItemsSource="{Binding TcpCredentialTypes}" SelectedItem="{Binding TcpClientCredentialType, Mode=TwoWay}" />
+                    <TextBlock Text="TCP transport credential type" />
+                    <ComboBox ItemsSource="{Binding TcpCredentialTypes}" SelectedItem="{Binding TcpTransportClientCredentialType, Mode=TwoWay}" />
+                </StackPanel>
+
+                <StackPanel Grid.Row="7" Grid.Column="0" Spacing="6" Visibility="{Binding IsRestApiWrapperSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="Message credential type" />
+                    <ComboBox ItemsSource="{Binding TcpCredentialTypes}" SelectedItem="{Binding MessageClientCredentialType, Mode=TwoWay}" />
                 </StackPanel>
 
                 <StackPanel Grid.Row="7" Grid.Column="0" Spacing="6">
@@ -394,8 +399,8 @@
             <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12">
                 <Button Content="Test dotnet-svcutil" Command="{Binding TestDotNetSvcUtilCommand}" />
                 <Button Content="Analyze Service Metadata" Command="{Binding AnalyzeServiceMetadataCommand}" />
-                <Button Content="Generate Class Library" Command="{Binding GenerateClassLibraryCommand}" />
-                <Button Content="Package Class Library as NuGet" Command="{Binding PackageClassLibraryCommand}" />
+                <Button Content="{Binding GenerateOutputButtonText}" Command="{Binding GenerateClassLibraryCommand}" />
+                <Button Content="Package Class Library as NuGet" Command="{Binding PackageClassLibraryCommand}" Visibility="{Binding IsClientLibrarySelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <TextBlock VerticalAlignment="Center" Text="{Binding BusyMessage}" />
             </StackPanel>
 

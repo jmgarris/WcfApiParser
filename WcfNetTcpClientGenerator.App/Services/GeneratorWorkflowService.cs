@@ -69,6 +69,8 @@ public sealed class GeneratorWorkflowService : IGeneratorWorkflowService
             OutputFolder = options.OutputFolder,
             SecurityMode = options.SecurityMode,
             TcpClientCredentialType = options.TcpClientCredentialType,
+            TcpTransportClientCredentialType = options.TcpTransportClientCredentialType,
+            MessageClientCredentialType = options.MessageClientCredentialType,
             ReliableSessionEnabled = options.ReliableSessionEnabled,
             OpenTimeout = options.OpenTimeout,
             CloseTimeout = options.CloseTimeout,

@@ -32,12 +32,19 @@ public sealed class NetTcpBindingFactoryGenerator
                 "UNSUPPORTED_SECURITY_MODE"));
         }
 
-        if (!SupportedCredentialTypes.Contains(options.TcpClientCredentialType))
+        var transportCredentialType = options.OutputKind == GeneratedOutputKind.NetFramework48RestApiWrapper
+            ? options.TcpTransportClientCredentialType : options.TcpClientCredentialType;
+        if (!SupportedCredentialTypes.Contains(transportCredentialType))
         {
             diagnostics.Add(new GenerationDiagnostic(
                 DiagnosticSeverity.Error,
-                $"Unsupported TCP client credential type: {options.TcpClientCredentialType}",
+                $"Unsupported TCP client credential type: {transportCredentialType}",
                 "UNSUPPORTED_CREDENTIAL_TYPE"));
+        }
+
+        if (!SupportedCredentialTypes.Contains(options.MessageClientCredentialType))
+        {
+            diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, $"Unsupported message client credential type: {options.MessageClientCredentialType}", "UNSUPPORTED_MESSAGE_CREDENTIAL_TYPE"));
         }
 
         return diagnostics;
@@ -46,7 +53,7 @@ public sealed class NetTcpBindingFactoryGenerator
     public string Generate(string libraryNamespace, ClientLibraryGenerationOptions options)
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"using {libraryNamespace}.Options;");
+        builder.AppendLine($"using {libraryNamespace}.{(options.OutputKind == GeneratedOutputKind.NetFramework48RestApiWrapper ? "Wcf" : "Options")};");
         builder.AppendLine();
         builder.AppendLine($"namespace {libraryNamespace}.Binding;");
         builder.AppendLine();
@@ -61,8 +68,12 @@ public sealed class NetTcpBindingFactoryGenerator
         builder.AppendLine("                Mode = MapSecurityMode(options.SecurityMode),");
         builder.AppendLine("                Transport =");
         builder.AppendLine("                {");
-        builder.AppendLine("                    ClientCredentialType = MapCredentialType(options.TcpClientCredentialType)");
+        builder.AppendLine($"                    ClientCredentialType = MapCredentialType(options.{(options.OutputKind == GeneratedOutputKind.NetFramework48RestApiWrapper ? "TcpTransportClientCredentialType" : "TcpClientCredentialType")})");
         builder.AppendLine("                }");
+        if (options.OutputKind == GeneratedOutputKind.NetFramework48RestApiWrapper)
+        {
+            builder.AppendLine("                , Message = { ClientCredentialType = MapMessageCredentialType(options.MessageClientCredentialType) }");
+        }
         builder.AppendLine("            },");
         builder.AppendLine("            ReliableSession =");
         builder.AppendLine("            {");
@@ -97,6 +108,19 @@ public sealed class NetTcpBindingFactoryGenerator
         builder.AppendLine("            \"UserName\" => global::System.ServiceModel.TcpClientCredentialType.Windows,");
         builder.AppendLine("            _ => throw new global::System.ArgumentOutOfRangeException(nameof(value), $\"Unsupported credential type: {value}\")");
         builder.AppendLine("        };");
+        if (options.OutputKind == GeneratedOutputKind.NetFramework48RestApiWrapper)
+        {
+            builder.AppendLine();
+            builder.AppendLine("    private static global::System.ServiceModel.MessageCredentialType MapMessageCredentialType(string value)");
+            builder.AppendLine("        => value switch");
+            builder.AppendLine("        {");
+            builder.AppendLine("            \"None\" => global::System.ServiceModel.MessageCredentialType.None,");
+            builder.AppendLine("            \"Windows\" => global::System.ServiceModel.MessageCredentialType.Windows,");
+            builder.AppendLine("            \"Certificate\" => global::System.ServiceModel.MessageCredentialType.Certificate,");
+            builder.AppendLine("            \"UserName\" => global::System.ServiceModel.MessageCredentialType.UserName,");
+            builder.AppendLine("            _ => throw new global::System.ArgumentOutOfRangeException(nameof(value), $\"Unsupported message credential type: {value}\")");
+            builder.AppendLine("        };");
+        }
         builder.AppendLine("}");
 
         return builder.ToString();

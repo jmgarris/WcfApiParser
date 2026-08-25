@@ -27,6 +27,12 @@ public sealed class ClientLibraryGenerationOptions
 
     public string TcpClientCredentialType { get; init; } = "Windows";
 
+    /// <summary>Credential used by the net.tcp transport layer.</summary>
+    public string TcpTransportClientCredentialType { get; init; } = "Windows";
+
+    /// <summary>Credential carried in the WCF message when message credentials are enabled.</summary>
+    public string MessageClientCredentialType { get; init; } = "None";
+
     public bool ReliableSessionEnabled { get; init; }
 
     public string OpenTimeout { get; init; } = "00:00:30";

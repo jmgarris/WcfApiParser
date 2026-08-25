@@ -35,6 +35,13 @@ public sealed class ClientLibraryGenerator
     {
         var diagnostics = ValidateOptions(options).ToList();
         diagnostics.AddRange(_bindingFactoryGenerator.ValidateOptions(options));
+        if (string.Equals(options.SecurityMode, "TransportWithMessageCredential", StringComparison.OrdinalIgnoreCase)
+            && options.OutputKind != GeneratedOutputKind.NetFramework48RestApiWrapper)
+        {
+            diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error,
+                "TransportWithMessageCredential requires the .NET Framework 4.8 REST API wrapper output because this WCF net.tcp security mode is not supported by the .NET 10 generated client path.",
+                "NET48_REST_WRAPPER_REQUIRED"));
+        }
 
         if (diagnostics.Any(static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error))
         {
@@ -128,7 +135,7 @@ public sealed class ClientLibraryGenerator
             projectFilePath,
             cancellationToken)).ConfigureAwait(false));
 
-        diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Info, $"Generated client library at {libraryDirectory}."));
+        diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Info, options.OutputKind == GeneratedOutputKind.NetFramework48RestApiWrapper ? $"Generated REST API wrapper at {libraryDirectory}." : $"Generated client library at {libraryDirectory}."));
 
         return new GenerationResult
         {
@@ -162,20 +169,20 @@ public sealed class ClientLibraryGenerator
         return diagnostics;
     }
 
-    private static string GenerateWebConfig() => "<?xml version=\"1.0\"?><configuration><appSettings><add key=\"Wcf:EndpointUrl\" value=\"net.tcp://server:808/MyService\"/><add key=\"Wcf:SecurityMode\" value=\"Transport\"/><add key=\"Wcf:TcpClientCredentialType\" value=\"Windows\"/><add key=\"Wcf:OpenTimeout\" value=\"00:00:30\"/><add key=\"Wcf:SendTimeout\" value=\"00:01:40\"/><add key=\"Wcf:ReceiveTimeout\" value=\"00:01:40\"/><add key=\"Wcf:MaxReceivedMessageSize\" value=\"65536\"/></appSettings><system.web><compilation targetFramework=\"4.8\"/></system.web><system.webServer><modules runAllManagedModulesForAllRequests=\"true\"/></system.webServer></configuration>";
+    private static string GenerateWebConfig() => "<?xml version=\"1.0\"?><configuration><appSettings><add key=\"Wcf:EndpointUrl\" value=\"net.tcp://server:808/MyService\"/><add key=\"Wcf:SecurityMode\" value=\"TransportWithMessageCredential\"/><add key=\"Wcf:TcpTransportClientCredentialType\" value=\"Windows\"/><add key=\"Wcf:MessageClientCredentialType\" value=\"UserName\"/><add key=\"Wcf:OpenTimeout\" value=\"00:00:30\"/><add key=\"Wcf:CloseTimeout\" value=\"00:00:30\"/><add key=\"Wcf:SendTimeout\" value=\"00:01:40\"/><add key=\"Wcf:ReceiveTimeout\" value=\"00:01:40\"/><add key=\"Wcf:MaxReceivedMessageSize\" value=\"65536\"/></appSettings><system.web><compilation targetFramework=\"4.8\"/></system.web><system.webServer><modules runAllManagedModulesForAllRequests=\"true\"/></system.webServer></configuration>";
     private static string GenerateRestReadme(string ns, WcfServiceMetadataModel metadata, bool enableSwagger)
     {
         var routes = metadata.Contracts.SelectMany(c => c.Operations.Select(o => "- POST /api/" + RestControllerGenerator.ToRoute(c.ContractName.Replace("Service", "")) + "/" + RestControllerGenerator.ToRoute(o.OperationName) + " -> " + c.ClientClassName + "." + o.ProxyMethodName));
         var swagger = enableSwagger ? "\n\n## Swagger\n\n- UI: `/swagger` or `/swagger/ui/index`\n- OpenAPI JSON: `/swagger/docs/v1`" : string.Empty;
-        return $"# {ns}\n\n.NET Framework 4.8 ASP.NET Web API 2 wrapper for WCF net.tcp. Configure Wcf:EndpointUrl and security settings in Web.config; do not store passwords there.\n\n## Routes\n" + string.Join("\n", routes) + swagger;
+        return $"# {ns}\n\n.NET Framework 4.8 ASP.NET Web API 2 REST API wrapper for a WCF net.tcp service. Configure Wcf:EndpointUrl and security settings in Web.config; do not store passwords there. Build the web application in Visual Studio and deploy it to IIS.\n\n## Routes\n" + string.Join("\n", routes) + swagger;
     }
     private static string GenerateSwaggerConfig(string ns) => $"using System.Web.Http; using WebActivatorEx; using Swashbuckle.Application; [assembly: PreApplicationStartMethod(typeof({ns}.App_Start.SwaggerConfig), \"Register\")] namespace {ns}.App_Start {{ public static class SwaggerConfig {{ public static void Register() {{ GlobalConfiguration.Configuration.EnableSwagger(c => {{ c.SingleApiVersion(\"v1\", \"{ns} REST API\"); c.DescribeAllEnumsAsStrings(); c.IncludeXmlComments(GetXmlCommentsPath()); }}).EnableSwaggerUi(c => {{ }}); }} private static string GetXmlCommentsPath() {{ return System.String.Format(\"{{0}}\\\\bin\\\\{{1}}.XML\", System.AppDomain.CurrentDomain.BaseDirectory, \"{ns}\"); }} }} }}";
     private static string GenerateWebApiConfig(string ns) => $"using System.Web.Http; namespace {ns}.App_Start {{ public static class WebApiConfig {{ public static void Register(HttpConfiguration config) {{ config.MapHttpAttributeRoutes(); config.Routes.MapHttpRoute(\"DefaultApi\", \"api/{{controller}}/{{action}}/{{id}}\", new {{ id = RouteParameter.Optional }}); config.Formatters.Remove(config.Formatters.XmlFormatter); }} }} }}";
-    private static string GenerateRestOptions(string ns) => $"using System; using System.Configuration; namespace {ns}.Wcf {{ public sealed class NetTcpWcfClientOptions {{ public string EndpointUrl {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:EndpointUrl\"]; public string SecurityMode {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:SecurityMode\"] ?? \"Transport\"; public string TcpClientCredentialType {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:TcpClientCredentialType\"] ?? \"Windows\"; public TimeSpan OpenTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:OpenTimeout\"] ?? \"00:00:30\"); public TimeSpan SendTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:SendTimeout\"] ?? \"00:01:40\"); public TimeSpan ReceiveTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:ReceiveTimeout\"] ?? \"00:01:40\"); public long MaxReceivedMessageSize {{ get; set; }} = long.Parse(ConfigurationManager.AppSettings[\"Wcf:MaxReceivedMessageSize\"] ?? \"65536\"); public string Username {{ get; set; }} public string Password {{ get; set; }} }} }}";
+    private static string GenerateRestOptions(string ns) => $"using System; using System.Configuration; namespace {ns}.Wcf {{ public sealed class NetTcpWcfClientOptions {{ public string EndpointUrl {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:EndpointUrl\"]; public string SecurityMode {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:SecurityMode\"] ?? \"Transport\"; public string TcpTransportClientCredentialType {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:TcpTransportClientCredentialType\"] ?? \"Windows\"; public string MessageClientCredentialType {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:MessageClientCredentialType\"] ?? \"None\"; public TimeSpan OpenTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:OpenTimeout\"] ?? \"00:00:30\"); public TimeSpan CloseTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:CloseTimeout\"] ?? \"00:00:30\"); public TimeSpan SendTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:SendTimeout\"] ?? \"00:01:40\"); public TimeSpan ReceiveTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:ReceiveTimeout\"] ?? \"00:01:40\"); public long MaxReceivedMessageSize {{ get; set; }} = long.Parse(ConfigurationManager.AppSettings[\"Wcf:MaxReceivedMessageSize\"] ?? \"65536\"); public string Username {{ get; set; }} public string Password {{ get; set; }} }} }}";
     private static string GenerateWcfFactory(string ns, WcfServiceMetadataModel metadata)
     {
         var b = new StringBuilder($"using System; using System.ServiceModel; using ServiceReference = {metadata.ServiceNamespace}; namespace {ns}.Wcf {{ public sealed class WcfClientFactory {{ private readonly NetTcpWcfClientOptions _options = new NetTcpWcfClientOptions(); ");
-        foreach (var c in metadata.Contracts) b.Append($"public ServiceReference.{c.ClientClassName} Create{CSharpIdentifierSanitizer.SanitizeTypeName(c.ClientClassName)}() {{ return new ServiceReference.{c.ClientClassName}(NetTcpBindingFactory.Create(_options), new EndpointAddress(_options.EndpointUrl)); }} ");
+        foreach (var c in metadata.Contracts) b.Append($"public ServiceReference.{c.ClientClassName} Create{CSharpIdentifierSanitizer.SanitizeTypeName(c.ClientClassName)}() {{ var client = new ServiceReference.{c.ClientClassName}(NetTcpBindingFactory.Create(_options), new EndpointAddress(_options.EndpointUrl)); if (_options.MessageClientCredentialType == \"UserName\" && !string.IsNullOrWhiteSpace(_options.Username) && !string.IsNullOrWhiteSpace(_options.Password)) {{ client.ClientCredentials.UserName.UserName = _options.Username; client.ClientCredentials.UserName.Password = _options.Password; }} return client; }} ");
         return b.Append("public void CloseOrAbort(ICommunicationObject client) { try { if (client.State != CommunicationState.Faulted) client.Close(); else client.Abort(); } catch { client.Abort(); } } } }").ToString();
     }
     /*

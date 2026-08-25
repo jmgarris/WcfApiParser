@@ -148,9 +148,15 @@ public partial class MainViewModel : ObservableObject
 
     public bool IsRestApiWrapperSelected => SelectedGeneratedOutputKind == GeneratedOutputKind.NetFramework48RestApiWrapper;
 
+    public bool IsClientLibrarySelected => !IsRestApiWrapperSelected;
+
+    public string GenerateOutputButtonText => IsRestApiWrapperSelected ? "Generate REST API Wrapper" : "Generate Class Library";
+
     partial void OnSelectedGeneratedOutputKindChanged(GeneratedOutputKind value)
     {
         OnPropertyChanged(nameof(IsRestApiWrapperSelected));
+        OnPropertyChanged(nameof(IsClientLibrarySelected));
+        OnPropertyChanged(nameof(GenerateOutputButtonText));
         if (value == GeneratedOutputKind.NetFramework48RestApiWrapper) EnableSwagger = true;
     }
 
@@ -168,6 +174,12 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private string tcpClientCredentialType = "Windows";
+
+    [ObservableProperty]
+    private string tcpTransportClientCredentialType = "Windows";
+
+    [ObservableProperty]
+    private string messageClientCredentialType = "None";
 
     [ObservableProperty]
     private bool reliableSessionEnabled;
@@ -368,9 +380,9 @@ public partial class MainViewModel : ObservableObject
 
     private async Task GenerateClassLibraryAsync()
     {
-        BusyMessage = "Generating class library...";
+        BusyMessage = IsRestApiWrapperSelected ? "Generating .NET Framework 4.8 REST API wrapper..." : "Generating class library...";
         ProgressPercentage = 50;
-        AddStatus("Info", "Generating client library.");
+        AddStatus("Info", IsRestApiWrapperSelected ? "Generating .NET Framework 4.8 REST API wrapper..." : "Generating client library.");
         AnnounceDocumentationProvider();
 
         var result = await _workflowService.GenerateAsync(BuildGenerationOptions(), CancellationToken.None);
@@ -383,6 +395,11 @@ public partial class MainViewModel : ObservableObject
 
     private async Task PackageClassLibraryAsync()
     {
+        if (IsRestApiWrapperSelected)
+        {
+            AddStatus("Warning", "REST API wrapper projects are built for IIS deployment and are not packaged as NuGet.");
+            return;
+        }
         BusyMessage = "Packaging NuGet package...";
         ProgressPercentage = 75;
 
@@ -494,6 +511,8 @@ public partial class MainViewModel : ObservableObject
             OutputFolder = OutputFolder,
             SecurityMode = SecurityMode,
             TcpClientCredentialType = TcpClientCredentialType,
+            TcpTransportClientCredentialType = TcpTransportClientCredentialType,
+            MessageClientCredentialType = MessageClientCredentialType,
             ReliableSessionEnabled = ReliableSessionEnabled,
             OpenTimeout = OpenTimeout,
             SendTimeout = SendTimeout,

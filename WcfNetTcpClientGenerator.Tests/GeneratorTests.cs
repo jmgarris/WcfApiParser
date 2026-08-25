@@ -78,6 +78,40 @@ public sealed class GeneratorTests
     }
 
     [Test]
+    public void TransportWithMessageCredential_RequiresNet48RestWrapper()
+    {
+        var generator = CreateClientLibraryGenerator();
+        var result = generator.GenerateAsync(new ClientLibraryGenerationOptions
+        {
+            OutputFolder = Path.GetTempPath(),
+            SecurityMode = "TransportWithMessageCredential",
+            OutputKind = GeneratedOutputKind.NetTcpClientLibrary,
+            ExistingProxyCode = SampleProxyCode
+        }, CancellationToken.None).GetAwaiter().GetResult();
+
+        Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Code == "NET48_REST_WRAPPER_REQUIRED"), Is.True);
+    }
+
+    [Test]
+    public void RestBinding_MapsMessageUserNameCredential()
+    {
+        var source = new NetTcpBindingFactoryGenerator().Generate("Contoso.Rest", new ClientLibraryGenerationOptions
+        {
+            OutputKind = GeneratedOutputKind.NetFramework48RestApiWrapper,
+            SecurityMode = "TransportWithMessageCredential",
+            TcpTransportClientCredentialType = "Windows",
+            MessageClientCredentialType = "UserName"
+        });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(source, Does.Contain("SecurityMode.TransportWithMessageCredential"));
+            Assert.That(source, Does.Contain("MessageCredentialType.UserName"));
+            Assert.That(source, Does.Contain("TcpTransportClientCredentialType"));
+        });
+    }
+
+    [Test]
     public void WrapperInterfaceGenerator_EmitsAsyncMethods()
     {
         var generator = new WrapperInterfaceGenerator();
