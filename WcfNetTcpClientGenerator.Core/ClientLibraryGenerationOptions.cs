@@ -2,6 +2,9 @@ namespace WcfNetTcpClientGenerator.Core;
 
 public sealed class ClientLibraryGenerationOptions
 {
+    public GeneratedOutputKind OutputKind { get; init; } = GeneratedOutputKind.NetTcpClientLibrary;
+
+    public bool EnableSwagger { get; init; } = true;
     public WcfMetadataDiscoveryOptions DiscoveryOptions { get; init; } = new();
 
     public string GeneratedLibraryName { get; init; } = "GeneratedNetTcpClient";

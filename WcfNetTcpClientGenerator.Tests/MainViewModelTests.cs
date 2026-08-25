@@ -106,6 +106,18 @@ public sealed class MainViewModelTests
         });
     }
 
+    [Test]
+    public void OpenAiDefaults_UseGpt56LunaWithNoReasoningEffort()
+    {
+        var viewModel = CreateViewModel(new FakeGeneratorWorkflowService());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.OpenAiModelName, Is.EqualTo("gpt-5.6-luna"));
+            Assert.That(viewModel.OpenAiReasoningEffort, Is.EqualTo("none"));
+        });
+    }
+
     private static MainViewModel CreateViewModel(FakeGeneratorWorkflowService workflow)
         => new(new FakeFolderPickerService(), new FakeFilePickerService(), workflow);
 

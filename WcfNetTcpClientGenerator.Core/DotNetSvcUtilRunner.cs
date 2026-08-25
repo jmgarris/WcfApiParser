@@ -3,8 +3,9 @@ using System.Text.Json;
 
 namespace WcfNetTcpClientGenerator.Core;
 
-public sealed class DotNetSvcUtilRunner
+public sealed class DotNetSvcUtilRunner : IWcfProxyToolRunner
 {
+    public string ToolName => "dotnet-svcutil";
     private const string ToolCommandName = "dotnet-svcutil";
     private const string ToolExecutableName = "dotnet-svcutil.exe";
     private const string ImprovedNotFoundMessage = "dotnet-svcutil could not be located from the generator process. It may be installed globally but not visible to the WinUI app process. Install it globally with `dotnet tool install --global dotnet-svcutil`, add `%USERPROFILE%\\.dotnet\\tools` to PATH, select the tool path manually, or add a local tool manifest containing dotnet-svcutil.";
@@ -178,6 +179,7 @@ public sealed class DotNetSvcUtilRunner
         string outputFilePath,
         string clrNamespace,
         string? configuredToolPath,
+        string targetFramework,
         CancellationToken cancellationToken)
     {
         Directory.CreateDirectory(outputDirectory);
@@ -195,7 +197,7 @@ public sealed class DotNetSvcUtilRunner
             };
         }
 
-        var arguments = BuildSvcUtilArguments(metadataSources, outputDirectory, outputFilePath, clrNamespace);
+        var arguments = BuildSvcUtilArguments(metadataSources, outputDirectory, outputFilePath, clrNamespace, targetFramework);
         var invocation = BuildInvocation(preflightResult, arguments);
         var executionResult = await _processRunner.RunAsync(invocation, cancellationToken).ConfigureAwait(false);
 
@@ -212,11 +214,15 @@ public sealed class DotNetSvcUtilRunner
         };
     }
 
+    public Task<DotNetSvcUtilResult> GenerateProxyAsync(IReadOnlyList<string> metadataSources, string outputDirectory, string outputFilePath, string clrNamespace, string? configuredToolPath, CancellationToken cancellationToken)
+        => GenerateProxyAsync(metadataSources, outputDirectory, outputFilePath, clrNamespace, configuredToolPath, "net10.0", cancellationToken);
+
     internal static IReadOnlyList<string> BuildSvcUtilArguments(
         IReadOnlyList<string> metadataSources,
         string outputDirectory,
         string outputFilePath,
-        string clrNamespace)
+        string clrNamespace,
+        string targetFramework = "net10.0")
     {
         var outputFileName = Path.GetFileName(outputFilePath);
         return
@@ -231,7 +237,7 @@ public sealed class DotNetSvcUtilRunner
             "--serializer",
             "Auto",
             "--targetFramework",
-            "net10.0",
+            targetFramework,
             "--noLogo",
             "--verbosity",
             "Minimal"

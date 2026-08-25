@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace WcfNetTcpClientGenerator.Core;
 
@@ -33,56 +34,64 @@ public sealed class OpenAiDocumentationClient
             };
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, ResponsesUri)
-        {
-            Content = CreateRequestBody(prompt, options)
-        };
-
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKeyResult.ApiKey);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
         try
         {
-            using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            var payload = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            var requestSettings = OpenAiModelCapabilities.Resolve(options, allowTemperature: true);
+            var execution = await SendRequestAsync(prompt, apiKeyResult.ApiKey!, options, requestSettings, cancellationToken).ConfigureAwait(false);
 
-            if (!response.IsSuccessStatusCode)
+            if (!execution.IsSuccessStatusCode
+                && execution.RequestSettings.Temperature.HasValue
+                && IsTemperatureUnsupportedResponse(execution.Payload))
             {
                 diagnostics.Add(new OpenAiDiagnostic
                 {
                     Severity = "Warning",
-                    Code = response.StatusCode switch
+                    Code = "OPENAI_TEMPERATURE_RETRY",
+                    StatusCode = (int)execution.StatusCode,
+                    Message = $"Model {requestSettings.ModelName} rejected temperature. Retrying once without temperature."
+                });
+
+                var retrySettings = requestSettings with { Temperature = null };
+                execution = await SendRequestAsync(prompt, apiKeyResult.ApiKey!, options, retrySettings, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!execution.IsSuccessStatusCode)
+            {
+                diagnostics.Add(new OpenAiDiagnostic
+                {
+                    Severity = "Warning",
+                    Code = execution.StatusCode switch
                     {
                         HttpStatusCode.Unauthorized => "OPENAI_UNAUTHORIZED",
                         HttpStatusCode.TooManyRequests => "OPENAI_RATE_LIMITED",
                         HttpStatusCode.RequestTimeout => "OPENAI_TIMEOUT",
                         _ => "OPENAI_HTTP_ERROR"
                     },
-                    StatusCode = (int)response.StatusCode,
-                    Message = $"OpenAI request failed with HTTP {(int)response.StatusCode}. {ExtractFirstUsefulString(payload)}".Trim()
+                    StatusCode = (int)execution.StatusCode,
+                    Message = $"OpenAI request failed with HTTP {(int)execution.StatusCode}. {ExtractFirstUsefulString(execution.Payload)}".Trim()
                 });
 
                 return new OpenAiDocumentationClientResult
                 {
                     Success = false,
-                    StatusCode = (int)response.StatusCode,
+                    StatusCode = (int)execution.StatusCode,
                     Diagnostics = diagnostics
                 };
             }
 
-            diagnostics.Add(new OpenAiDiagnostic
-            {
-                Severity = "Info",
-                Code = "OPENAI_REQUEST_SUCCEEDED",
-                StatusCode = (int)response.StatusCode,
-                Message = apiKeyResult.SourceDescription
-            });
+                diagnostics.Add(new OpenAiDiagnostic
+                {
+                    Severity = "Info",
+                    Code = "OPENAI_REQUEST_SUCCEEDED",
+                    StatusCode = (int)execution.StatusCode,
+                    Message = apiKeyResult.SourceDescription
+                });
 
             return new OpenAiDocumentationClientResult
             {
                 Success = true,
-                RawResponseText = ExtractResponseText(payload),
-                StatusCode = (int)response.StatusCode,
+                RawResponseText = ExtractResponseText(execution.Payload),
+                StatusCode = (int)execution.StatusCode,
                 Diagnostics = diagnostics
             };
         }
@@ -118,95 +127,78 @@ public sealed class OpenAiDocumentationClient
         }
     }
 
-    private static StringContent CreateRequestBody(string prompt, OpenAiDocumentationOptions options)
+    private async Task<RequestExecutionResult> SendRequestAsync(
+        string prompt,
+        string apiKey,
+        OpenAiDocumentationOptions options,
+        OpenAiModelCapabilities.ResolvedRequestSettings requestSettings,
+        CancellationToken cancellationToken)
     {
-        var request = new
+        using var request = new HttpRequestMessage(HttpMethod.Post, ResponsesUri)
         {
-            model = options.ModelName,
-            input = new object[]
-            {
-                new
-                {
-                    role = "developer",
-                    content = new object[]
-                    {
-                        new
-                        {
-                            type = "input_text",
-                            text = "You generate concise structured JSON for C# XML documentation comments."
-                        }
-                    }
-                },
-                new
-                {
-                    role = "user",
-                    content = new object[]
-                    {
-                        new
-                        {
-                            type = "input_text",
-                            text = prompt
-                        }
-                    }
-                }
-            },
-            text = new
-            {
-                format = new
-                {
-                    type = "json_schema",
-                    name = "wcf_method_documentation",
-                    strict = true,
-                    schema = new
-                    {
-                        type = "object",
-                        additionalProperties = false,
-                        properties = new
-                        {
-                            summary = new { type = "string" },
-                            parameters = new
-                            {
-                                type = "array",
-                                items = new
-                                {
-                                    type = "object",
-                                    additionalProperties = false,
-                                    properties = new
-                                    {
-                                        name = new { type = "string" },
-                                        description = new { type = "string" }
-                                    },
-                                    required = new[] { "name", "description" }
-                                }
-                            },
-                            returns = new { type = "string" },
-                            exceptions = new
-                            {
-                                type = "array",
-                                items = new
-                                {
-                                    type = "object",
-                                    additionalProperties = false,
-                                    properties = new
-                                    {
-                                        type = new { type = "string" },
-                                        description = new { type = "string" }
-                                    },
-                                    required = new[] { "type", "description" }
-                                }
-                            },
-                            remarks = new { type = "string" }
-                        },
-                        required = new[] { "summary", "parameters", "returns", "exceptions", "remarks" }
-                    }
-                }
-            },
-            max_output_tokens = options.MaxOutputTokens,
-            temperature = options.Temperature
+            Content = CreateRequestBody(prompt, options, requestSettings)
         };
 
-        return new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        var payload = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        return new RequestExecutionResult(response.StatusCode, response.IsSuccessStatusCode, payload, requestSettings);
     }
+
+    private static StringContent CreateRequestBody(
+        string prompt,
+        OpenAiDocumentationOptions? options,
+        OpenAiModelCapabilities.ResolvedRequestSettings requestSettings)
+    {
+        var maxOutputTokens = options?.MaxOutputTokens ?? 600;
+        var request = new RequestPayload
+        {
+            Model = requestSettings.ModelName,
+            Input =
+            [
+                new InputMessage
+                {
+                    Role = "developer",
+                    Content =
+                    [
+                        new InputContent
+                        {
+                            Type = "input_text",
+                            Text = "You generate concise structured JSON for C# XML documentation comments."
+                        }
+                    ]
+                },
+                new InputMessage
+                {
+                    Role = "user",
+                    Content =
+                    [
+                        new InputContent
+                        {
+                            Type = "input_text",
+                            Text = prompt
+                        }
+                    ]
+                }
+            ],
+            Text = StructuredTextFormat,
+            MaxOutputTokens = maxOutputTokens,
+            Temperature = requestSettings.Temperature,
+            Reasoning = string.IsNullOrWhiteSpace(requestSettings.ReasoningEffort)
+                ? null
+                : new ReasoningPayload { Effort = requestSettings.ReasoningEffort }
+        };
+
+        return new StringContent(
+            JsonSerializer.Serialize(request, RequestSerializerOptions),
+            Encoding.UTF8,
+            "application/json");
+    }
+
+    private static StringContent CreateRequestBody(string prompt, OpenAiDocumentationOptions options)
+        => CreateRequestBody(prompt, options, OpenAiModelCapabilities.Resolve(options, allowTemperature: true));
 
     private static string ExtractResponseText(string payload)
     {
@@ -311,6 +303,66 @@ public sealed class OpenAiDocumentationClient
             _ => null
         };
 
+    private static bool IsTemperatureUnsupportedResponse(string payload)
+        => payload.IndexOf("temperature is not supported with this model", StringComparison.OrdinalIgnoreCase) >= 0;
+
+    private static readonly JsonSerializerOptions RequestSerializerOptions = new()
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    private static readonly StructuredTextPayload StructuredTextFormat = new()
+    {
+        Format = new StructuredFormat
+        {
+            Type = "json_schema",
+            Name = "wcf_method_documentation",
+            Strict = true,
+            Schema = new StructuredSchema
+            {
+                Type = "object",
+                AdditionalProperties = false,
+                Properties = new StructuredSchemaProperties
+                {
+                    Summary = new SchemaPrimitive { Type = "string" },
+                    Parameters = new SchemaArray
+                    {
+                        Type = "array",
+                        Items = new SchemaObject
+                        {
+                            Type = "object",
+                            AdditionalProperties = false,
+                            Properties = new SchemaObjectProperties
+                            {
+                                Name = new SchemaPrimitive { Type = "string" },
+                                Description = new SchemaPrimitive { Type = "string" }
+                            },
+                            Required = ["name", "description"]
+                        }
+                    },
+                    Returns = new SchemaPrimitive { Type = "string" },
+                    Exceptions = new SchemaArray
+                    {
+                        Type = "array",
+                        Items = new SchemaObject
+                        {
+                            Type = "object",
+                            AdditionalProperties = false,
+                            Properties = new SchemaObjectProperties
+                            {
+                                Type = new SchemaPrimitive { Type = "string" },
+                                Description = new SchemaPrimitive { Type = "string" }
+                            },
+                            Required = ["type", "description"]
+                        }
+                    },
+                    Remarks = new SchemaPrimitive { Type = "string" }
+                },
+                Required = ["summary", "parameters", "returns", "exceptions", "remarks"]
+            }
+        }
+    };
+
     public sealed class OpenAiDocumentationClientResult
     {
         public bool Success { get; init; }
@@ -320,5 +372,152 @@ public sealed class OpenAiDocumentationClient
         public int? StatusCode { get; init; }
 
         public IReadOnlyList<OpenAiDiagnostic> Diagnostics { get; init; } = [];
+    }
+
+    private sealed record RequestExecutionResult(
+        HttpStatusCode StatusCode,
+        bool IsSuccessStatusCode,
+        string Payload,
+        OpenAiModelCapabilities.ResolvedRequestSettings RequestSettings);
+
+    private sealed class RequestPayload
+    {
+        [JsonPropertyName("model")]
+        public string Model { get; init; } = string.Empty;
+
+        [JsonPropertyName("input")]
+        public IReadOnlyList<InputMessage> Input { get; init; } = [];
+
+        [JsonPropertyName("text")]
+        public StructuredTextPayload Text { get; init; } = new();
+
+        [JsonPropertyName("max_output_tokens")]
+        public int MaxOutputTokens { get; init; }
+
+        [JsonPropertyName("temperature")]
+        public double? Temperature { get; init; }
+
+        [JsonPropertyName("reasoning")]
+        public ReasoningPayload? Reasoning { get; init; }
+    }
+
+    private sealed class InputMessage
+    {
+        [JsonPropertyName("role")]
+        public string Role { get; init; } = string.Empty;
+
+        [JsonPropertyName("content")]
+        public IReadOnlyList<InputContent> Content { get; init; } = [];
+    }
+
+    private sealed class InputContent
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; init; } = string.Empty;
+
+        [JsonPropertyName("text")]
+        public string Text { get; init; } = string.Empty;
+    }
+
+    private sealed class StructuredTextPayload
+    {
+        [JsonPropertyName("format")]
+        public StructuredFormat Format { get; init; } = new();
+    }
+
+    private sealed class StructuredFormat
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; init; } = string.Empty;
+
+        [JsonPropertyName("name")]
+        public string Name { get; init; } = string.Empty;
+
+        [JsonPropertyName("strict")]
+        public bool Strict { get; init; }
+
+        [JsonPropertyName("schema")]
+        public StructuredSchema Schema { get; init; } = new();
+    }
+
+    private sealed class StructuredSchema
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; init; } = string.Empty;
+
+        [JsonPropertyName("additionalProperties")]
+        public bool AdditionalProperties { get; init; }
+
+        [JsonPropertyName("properties")]
+        public StructuredSchemaProperties Properties { get; init; } = new();
+
+        [JsonPropertyName("required")]
+        public IReadOnlyList<string> Required { get; init; } = [];
+    }
+
+    private sealed class StructuredSchemaProperties
+    {
+        [JsonPropertyName("summary")]
+        public SchemaPrimitive Summary { get; init; } = new();
+
+        [JsonPropertyName("parameters")]
+        public SchemaArray Parameters { get; init; } = new();
+
+        [JsonPropertyName("returns")]
+        public SchemaPrimitive Returns { get; init; } = new();
+
+        [JsonPropertyName("exceptions")]
+        public SchemaArray Exceptions { get; init; } = new();
+
+        [JsonPropertyName("remarks")]
+        public SchemaPrimitive Remarks { get; init; } = new();
+    }
+
+    private sealed class SchemaArray
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; init; } = string.Empty;
+
+        [JsonPropertyName("items")]
+        public SchemaObject Items { get; init; } = new();
+    }
+
+    private sealed class SchemaObject
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; init; } = string.Empty;
+
+        [JsonPropertyName("additionalProperties")]
+        public bool AdditionalProperties { get; init; }
+
+        [JsonPropertyName("properties")]
+        public SchemaObjectProperties Properties { get; init; } = new();
+
+        [JsonPropertyName("required")]
+        public IReadOnlyList<string> Required { get; init; } = [];
+    }
+
+    private sealed class SchemaObjectProperties
+    {
+        [JsonPropertyName("name")]
+        public SchemaPrimitive? Name { get; init; }
+
+        [JsonPropertyName("description")]
+        public SchemaPrimitive Description { get; init; } = new();
+
+        [JsonPropertyName("type")]
+        public SchemaPrimitive? Type { get; init; }
+    }
+
+    private sealed class SchemaPrimitive
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; init; } = string.Empty;
+    }
+
+    private sealed class ReasoningPayload
+    {
+        [JsonPropertyName("effort")]
+        public string Effort { get; init; } = string.Empty;
     }
 }

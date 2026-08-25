@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using WcfNetTcpClientGenerator.App.Services;
 using WcfNetTcpClientGenerator.Core;
 
@@ -184,6 +185,137 @@ public sealed class MethodDocumentationTests
             Assert.That(result.Success, Is.True);
             Assert.That(result.WasGeneratedByAi, Is.True);
             Assert.That(result.XmlDocumentationText, Does.Contain("/// <summary>"));
+        });
+    }
+
+    [Test]
+    public async Task Gpt56FamilyRequest_OmitsTemperatureAndUsesReasoningEffort()
+    {
+        var handler = new RecordingHandler(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent(ResponseWithOutputText("""{"summary":"Calls the operation.","parameters":[],"returns":"A response.","exceptions":[],"remarks":""}"""))
+            });
+        var client = new OpenAiDocumentationClient(new HttpClient(handler), new FakeOpenAiApiKeyProvider());
+
+        var result = await client.GenerateStructuredCommentAsync(
+            "Prompt",
+            new OpenAiDocumentationOptions
+            {
+                ModelName = "gpt-5.6-luna",
+                ReasoningEffort = "low",
+                Temperature = 0.9d,
+                MaxOutputTokens = 321
+            },
+            CancellationToken.None);
+
+        using var document = JsonDocument.Parse(handler.RequestBodies.Single());
+        var root = document.RootElement;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True);
+            Assert.That(root.TryGetProperty("temperature", out _), Is.False);
+            Assert.That(root.GetProperty("reasoning").GetProperty("effort").GetString(), Is.EqualTo("low"));
+            Assert.That(root.GetProperty("max_output_tokens").GetInt32(), Is.EqualTo(321));
+        });
+    }
+
+    [Test]
+    public async Task Gpt5Request_OmitsTemperatureWithoutExplicitCapabilitySupport()
+    {
+        var handler = new RecordingHandler(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent(ResponseWithOutputText("""{"summary":"Calls the operation.","parameters":[],"returns":"A response.","exceptions":[],"remarks":""}"""))
+            });
+        var client = new OpenAiDocumentationClient(new HttpClient(handler), new FakeOpenAiApiKeyProvider());
+
+        var result = await client.GenerateStructuredCommentAsync(
+            "Prompt",
+            new OpenAiDocumentationOptions
+            {
+                ModelName = "gpt-5",
+                ReasoningEffort = "medium",
+                Temperature = 0.7d
+            },
+            CancellationToken.None);
+
+        using var document = JsonDocument.Parse(handler.RequestBodies.Single());
+        var root = document.RootElement;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True);
+            Assert.That(root.TryGetProperty("temperature", out _), Is.False);
+            Assert.That(root.GetProperty("reasoning").GetProperty("effort").GetString(), Is.EqualTo("medium"));
+        });
+    }
+
+    [Test]
+    public async Task LegacyModelRequest_KeepsTemperatureWhenCapabilityMetadataSupportsIt()
+    {
+        var handler = new RecordingHandler(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent(ResponseWithOutputText("""{"summary":"Calls the operation.","parameters":[],"returns":"A response.","exceptions":[],"remarks":""}"""))
+            });
+        var client = new OpenAiDocumentationClient(new HttpClient(handler), new FakeOpenAiApiKeyProvider());
+
+        var result = await client.GenerateStructuredCommentAsync(
+            "Prompt",
+            new OpenAiDocumentationOptions
+            {
+                ModelName = "gpt-4.1-mini",
+                ReasoningEffort = "max",
+                Temperature = 0.6d
+            },
+            CancellationToken.None);
+
+        using var document = JsonDocument.Parse(handler.RequestBodies.Single());
+        var root = document.RootElement;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True);
+            Assert.That(root.GetProperty("temperature").GetDouble(), Is.EqualTo(0.6d));
+            Assert.That(root.TryGetProperty("reasoning", out _), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task UnsupportedTemperatureResponse_RetriesOnceWithoutTemperature()
+    {
+        var handler = new RecordingHandler(
+            new HttpResponseMessage(HttpStatusCode.BadRequest)
+            {
+                Content = JsonContent("""{"error":{"message":"temperature is not supported with this model"}}""")
+            },
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent(ResponseWithOutputText("""{"summary":"Calls the operation.","parameters":[],"returns":"A response.","exceptions":[],"remarks":""}"""))
+            });
+        var client = new OpenAiDocumentationClient(new HttpClient(handler), new FakeOpenAiApiKeyProvider());
+
+        var result = await client.GenerateStructuredCommentAsync(
+            "Prompt",
+            new OpenAiDocumentationOptions
+            {
+                ModelName = "gpt-4.1-mini",
+                Temperature = 0.4d
+            },
+            CancellationToken.None);
+
+        using var firstRequest = JsonDocument.Parse(handler.RequestBodies[0]);
+        using var secondRequest = JsonDocument.Parse(handler.RequestBodies[1]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True);
+            Assert.That(handler.RequestBodies, Has.Count.EqualTo(2));
+            Assert.That(firstRequest.RootElement.GetProperty("temperature").GetDouble(), Is.EqualTo(0.4d));
+            Assert.That(secondRequest.RootElement.TryGetProperty("temperature", out _), Is.False);
+            Assert.That(result.Diagnostics.Any(static diagnostic => diagnostic.Code == "OPENAI_TEMPERATURE_RETRY"), Is.True);
         });
     }
 
@@ -536,8 +668,9 @@ public sealed class MethodDocumentationTests
             MaxCommentLength = 1000,
             OpenAi = new OpenAiDocumentationOptions
             {
-                ModelName = "gpt-5.6",
+                ModelName = "gpt-5.6-luna",
                 MaxOutputTokens = 300,
+                ReasoningEffort = "none",
                 Temperature = 0.2d
             }
         };
@@ -619,5 +752,25 @@ public sealed class MethodDocumentationTests
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             => Task.FromException<HttpResponseMessage>(_exception);
+    }
+
+    private sealed class RecordingHandler : HttpMessageHandler
+    {
+        private readonly Queue<HttpResponseMessage> _responses;
+
+        public RecordingHandler(params HttpResponseMessage[] responses)
+        {
+            _responses = new Queue<HttpResponseMessage>(responses);
+        }
+
+        public List<string> RequestBodies { get; } = [];
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            RequestBodies.Add(request.Content is null
+                ? string.Empty
+                : await request.Content.ReadAsStringAsync(cancellationToken));
+            return _responses.Dequeue();
+        }
     }
 }

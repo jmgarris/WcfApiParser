@@ -64,6 +64,12 @@ public partial class MainViewModel : ObservableObject
         "UserName"
     ];
 
+    public IReadOnlyList<SelectionOption<GeneratedOutputKind>> GeneratedOutputKinds { get; } =
+    [
+        new SelectionOption<GeneratedOutputKind> { Value = GeneratedOutputKind.NetTcpClientLibrary, Label = "WCF client library (.NET 10)" },
+        new SelectionOption<GeneratedOutputKind> { Value = GeneratedOutputKind.NetFramework48RestApiWrapper, Label = "REST API wrapper for WCF net.tcp (.NET Framework 4.8)" }
+    ];
+
     public IReadOnlyList<SelectionOption<DocumentationProviderKind>> DocumentationProviders { get; } =
     [
         new SelectionOption<DocumentationProviderKind> { Value = DocumentationProviderKind.LocalFallback, Label = "Local fallback only" },
@@ -75,6 +81,16 @@ public partial class MainViewModel : ObservableObject
     [
         new SelectionOption<OpenAiApiKeySource> { Value = OpenAiApiKeySource.EnvironmentVariable, Label = "Environment variable" },
         new SelectionOption<OpenAiApiKeySource> { Value = OpenAiApiKeySource.UserEnteredKey, Label = "User-entered key" }
+    ];
+
+    public IReadOnlyList<string> OpenAiReasoningEfforts { get; } =
+    [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
     ];
 
     public IAsyncRelayCommand AnalyzeServiceMetadataCommand { get; }
@@ -123,6 +139,20 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private string generatedLibraryName = "GeneratedNetTcpClient";
+
+    [ObservableProperty]
+    private GeneratedOutputKind selectedGeneratedOutputKind = GeneratedOutputKind.NetTcpClientLibrary;
+
+    [ObservableProperty]
+    private bool enableSwagger = true;
+
+    public bool IsRestApiWrapperSelected => SelectedGeneratedOutputKind == GeneratedOutputKind.NetFramework48RestApiWrapper;
+
+    partial void OnSelectedGeneratedOutputKindChanged(GeneratedOutputKind value)
+    {
+        OnPropertyChanged(nameof(IsRestApiWrapperSelected));
+        if (value == GeneratedOutputKind.NetFramework48RestApiWrapper) EnableSwagger = true;
+    }
 
     [ObservableProperty]
     private string packageId = "GeneratedNetTcpClient";
@@ -212,10 +242,13 @@ public partial class MainViewModel : ObservableObject
     private string openAiApiKey = string.Empty;
 
     [ObservableProperty]
-    private string openAiModelName = "gpt-5.6";
+    private string openAiModelName = "gpt-5.6-luna";
 
     [ObservableProperty]
     private string openAiMaxOutputTokens = "600";
+
+    [ObservableProperty]
+    private string openAiReasoningEffort = "none";
 
     [ObservableProperty]
     private string openAiTemperature = "0.2";
@@ -452,6 +485,8 @@ public partial class MainViewModel : ObservableObject
     private ClientLibraryGenerationOptions BuildGenerationOptions()
         => new()
         {
+            OutputKind = SelectedGeneratedOutputKind,
+            EnableSwagger = EnableSwagger,
             DiscoveryOptions = BuildDiscoveryOptions(),
             GeneratedLibraryName = GeneratedLibraryName,
             PackageId = PackageId,
@@ -508,6 +543,7 @@ public partial class MainViewModel : ObservableObject
             UserEnteredApiKey = OpenAiApiKey,
             ModelName = OpenAiModelName,
             MaxOutputTokens = ParsePositiveInt(OpenAiMaxOutputTokens, 600),
+            ReasoningEffort = OpenAiModelCapabilities.NormalizeReasoningEffort(OpenAiReasoningEffort),
             Temperature = ParseDouble(OpenAiTemperature, 0.2d)
         };
 

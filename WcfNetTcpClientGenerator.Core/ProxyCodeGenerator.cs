@@ -14,6 +14,7 @@ public sealed class ProxyCodeGenerator
         string outputDirectory,
         string serviceNamespace,
         string? configuredToolPath,
+        string targetFramework,
         CancellationToken cancellationToken)
     {
         var preflightResult = await _runner.CheckAvailabilityAsync(configuredToolPath, outputDirectory, cancellationToken).ConfigureAwait(false);
@@ -40,6 +41,7 @@ public sealed class ProxyCodeGenerator
             proxyPath,
             sanitizedNamespace,
             configuredToolPath,
+            targetFramework,
             cancellationToken).ConfigureAwait(false);
 
         if (!result.Success || string.IsNullOrWhiteSpace(result.ProxyFilePath))
@@ -59,7 +61,7 @@ public sealed class ProxyCodeGenerator
         var parseResult = ProxyCodeParser.Parse(await File.ReadAllTextAsync(result.ProxyFilePath, cancellationToken).ConfigureAwait(false), sanitizedNamespace);
         var diagnostics = parseResult.Diagnostics.ToList();
 
-        diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Info, $"dotnet-svcutil mode: {result.PreflightResult?.ToolExecutionMode}."));
+        diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Info, $"Proxy tool used: dotnet-svcutil ({result.PreflightResult?.ToolExecutionMode})."));
         if (!string.IsNullOrWhiteSpace(result.PreflightResult?.ToolPath))
         {
             diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Info, $"dotnet-svcutil source: {result.PreflightResult.ToolPath}."));
@@ -76,6 +78,9 @@ public sealed class ProxyCodeGenerator
             Diagnostics = diagnostics
         };
     }
+
+    public Task<ProxyGenerationResult> GenerateAsync(IReadOnlyList<string> metadataSources, string outputDirectory, string serviceNamespace, string? configuredToolPath, CancellationToken cancellationToken)
+        => GenerateAsync(metadataSources, outputDirectory, serviceNamespace, configuredToolPath, "net10.0", cancellationToken);
 
     private static string BuildFailureMessage(IReadOnlyList<string> metadataSources, DotNetSvcUtilRunner.DotNetSvcUtilResult result)
     {

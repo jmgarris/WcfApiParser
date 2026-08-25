@@ -1,11 +1,12 @@
 # WCF Net.TCP Client Generator
 
-`WcfNetTcpClientGenerator` is a WinUI 3 desktop application and .NET 10 solution for analyzing existing WCF `net.tcp` services and generating reusable client libraries from their metadata.
+`WcfNetTcpClientGenerator` is a WinUI 3 desktop application and .NET 10 solution for analyzing existing WCF `net.tcp` services. It can generate either a reusable .NET 10 client library or an IIS-hosted .NET Framework 4.8 ASP.NET Web API 2 REST wrapper.
 
 ## Features
 
 - Analyze WCF metadata from a `net.tcp` endpoint, explicit MEX URL, WSDL file, or a folder containing WSDL/XSD documents
 - Generate a standalone client library with proxy code, wrapper services, options, binding helpers, dependency injection extensions, and package-ready project metadata
+- Generate a .NET Framework 4.8 Web API 2 wrapper with JSON endpoints, Web.config-driven net.tcp settings, controllers, and safe WCF channel cleanup
 - Package the generated library as a NuGet package from the desktop app
 - Preflight-check `dotnet-svcutil` before proxy generation and surface diagnostics in the UI
 - Support `dotnet-svcutil` discovery from:

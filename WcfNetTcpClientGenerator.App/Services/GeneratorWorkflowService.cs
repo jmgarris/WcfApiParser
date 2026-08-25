@@ -56,6 +56,8 @@ public sealed class GeneratorWorkflowService : IGeneratorWorkflowService
 
         var effectiveOptions = new ClientLibraryGenerationOptions
         {
+            OutputKind = options.OutputKind,
+            EnableSwagger = options.EnableSwagger,
             DiscoveryOptions = options.DiscoveryOptions,
             GeneratedLibraryName = options.GeneratedLibraryName,
             PackageId = options.PackageId,

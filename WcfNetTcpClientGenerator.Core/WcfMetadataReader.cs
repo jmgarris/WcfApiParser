@@ -34,7 +34,7 @@ public sealed class WcfMetadataReader
                 workingDirectory,
                 options.ServiceNamespace,
                 options.DotNetSvcUtilPath,
-                cancellationToken).ConfigureAwait(false);
+            "net10.0", cancellationToken).ConfigureAwait(false);
 
             attemptDiagnostics.AddRange(proxyResult.Diagnostics);
 
