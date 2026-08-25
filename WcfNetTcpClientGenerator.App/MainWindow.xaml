@@ -92,19 +92,20 @@
                     <TextBlock Text="Generated output type" />
                     <ComboBox ItemsSource="{Binding GeneratedOutputKinds}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedGeneratedOutputKind, Mode=TwoWay}" />
                 </StackPanel>
-                <CheckBox Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Content="Enable Swagger / API documentation" IsChecked="{Binding EnableSwagger, Mode=TwoWay}" Visibility="{Binding IsRestApiWrapperSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Text="TransportWithMessageCredential requires the .NET Framework 4.8 REST API wrapper because the .NET 10 generated client path does not support this WCF net.tcp security mode." TextWrapping="Wrap" Opacity="0.75" />
+                <CheckBox Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Content="Enable Swagger / API documentation" IsChecked="{Binding EnableSwagger, Mode=TwoWay}" Visibility="{Binding IsRestApiWrapperSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
-                <StackPanel Grid.Row="3" Grid.Column="0" Spacing="6" Visibility="{Binding IsClientLibrarySelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel Grid.Row="6" Grid.Column="0" Spacing="6" Visibility="{Binding IsClientLibrarySelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock Text="NuGet package ID" />
                     <TextBox Text="{Binding PackageId, Mode=TwoWay}" PlaceholderText="Contoso.CustomerClient" />
                 </StackPanel>
 
-                <StackPanel Grid.Row="3" Grid.Column="1" Spacing="6" Visibility="{Binding IsClientLibrarySelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel Grid.Row="6" Grid.Column="1" Spacing="6" Visibility="{Binding IsClientLibrarySelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock Text="NuGet package version" />
                     <TextBox Text="{Binding PackageVersion, Mode=TwoWay}" PlaceholderText="1.0.0" />
                 </StackPanel>
 
-                <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Spacing="6">
+                <StackPanel Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Spacing="6">
                     <TextBlock Text="dotnet-svcutil path (optional)" />
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
@@ -116,7 +117,7 @@
                     </Grid>
                 </StackPanel>
 
-                <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Spacing="6">
+                <StackPanel Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" Spacing="6">
                     <TextBlock Text="Output folder" />
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
@@ -128,32 +129,32 @@
                     </Grid>
                 </StackPanel>
 
-                <StackPanel Grid.Row="6" Grid.Column="0" Spacing="6">
+                <StackPanel Grid.Row="9" Grid.Column="0" Spacing="6">
                     <TextBlock Text="Security mode" />
                     <ComboBox ItemsSource="{Binding SecurityModes}" SelectedItem="{Binding SecurityMode, Mode=TwoWay}" />
                 </StackPanel>
 
-                <StackPanel Grid.Row="6" Grid.Column="1" Spacing="6">
+                <StackPanel Grid.Row="9" Grid.Column="1" Spacing="6">
                     <TextBlock Text="TCP transport credential type" />
                     <ComboBox ItemsSource="{Binding TcpCredentialTypes}" SelectedItem="{Binding TcpTransportClientCredentialType, Mode=TwoWay}" />
                 </StackPanel>
 
-                <StackPanel Grid.Row="7" Grid.Column="0" Spacing="6" Visibility="{Binding IsRestApiWrapperSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2" Spacing="6" Visibility="{Binding IsMessageCredentialTypeVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <TextBlock Text="Message credential type" />
                     <ComboBox ItemsSource="{Binding TcpCredentialTypes}" SelectedItem="{Binding MessageClientCredentialType, Mode=TwoWay}" />
                 </StackPanel>
 
-                <StackPanel Grid.Row="7" Grid.Column="0" Spacing="6">
+                <StackPanel Grid.Row="11" Grid.Column="0" Spacing="6">
                     <TextBlock Text="Reliable session enabled" />
                     <CheckBox IsChecked="{Binding ReliableSessionEnabled, Mode=TwoWay}" Content="Enable reliable sessions when supported" />
                 </StackPanel>
 
-                <StackPanel Grid.Row="7" Grid.Column="1" Spacing="6">
+                <StackPanel Grid.Row="11" Grid.Column="1" Spacing="6">
                     <TextBlock Text="Max received message size" />
                     <TextBox Text="{Binding MaxReceivedMessageSize, Mode=TwoWay}" />
                 </StackPanel>
 
-                <Grid Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="16">
+                <Grid Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
@@ -176,7 +177,7 @@
                     </StackPanel>
                 </Grid>
 
-                <Grid Grid.Row="9" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="16">
+                <Grid Grid.Row="13" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
@@ -193,13 +194,13 @@
                     </StackPanel>
                 </Grid>
 
-                <StackPanel Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4">
+                <StackPanel Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4">
                     <TextBlock Text="AI Documentation" FontSize="20" FontWeight="SemiBold" />
                     <TextBlock Text="Generate XML documentation comments with a selectable provider or stay on deterministic local fallback comments." TextWrapping="Wrap" Opacity="0.75" />
                     <TextBlock Text="The generated client library never includes AI provider packages, keys, or settings." TextWrapping="Wrap" Opacity="0.75" />
                 </StackPanel>
 
-                <Grid Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="16">
+                <Grid Grid.Row="15" Grid.Column="0" Grid.ColumnSpan="2" ColumnSpacing="16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="200" />
                         <ColumnDefinition Width="*" />
@@ -216,7 +217,7 @@
                 </Grid>
 
                 <StackPanel
-                    Grid.Row="12"
+                    Grid.Row="16"
                     Grid.Column="0"
                     Grid.ColumnSpan="2"
                     Spacing="10"
@@ -298,7 +299,7 @@
                 </StackPanel>
 
                 <StackPanel
-                    Grid.Row="13"
+                    Grid.Row="17"
                     Grid.Column="0"
                     Grid.ColumnSpan="2"
                     Spacing="10"

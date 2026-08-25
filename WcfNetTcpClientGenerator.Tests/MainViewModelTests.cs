@@ -118,6 +118,24 @@ public sealed class MainViewModelTests
         });
     }
 
+    [Test]
+    public void TransportWithMessageCredential_AutomaticallySelectsRestWrapper()
+    {
+        var viewModel = CreateViewModel(new FakeGeneratorWorkflowService());
+
+        viewModel.SecurityMode = "TransportWithMessageCredential";
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(viewModel.SelectedGeneratedOutputKind, Is.EqualTo(GeneratedOutputKind.NetFramework48RestApiWrapper));
+            Assert.That(viewModel.EnableSwagger, Is.True);
+            Assert.That(viewModel.MessageClientCredentialType, Is.EqualTo("UserName"));
+            Assert.That(viewModel.IsMessageCredentialTypeVisible, Is.True);
+            Assert.That(viewModel.IsClientLibrarySelected, Is.False);
+            Assert.That(viewModel.StatusMessages.Any(message => message.Message.Contains("Output type was changed automatically.", StringComparison.Ordinal)), Is.True);
+        });
+    }
+
     private static MainViewModel CreateViewModel(FakeGeneratorWorkflowService workflow)
         => new(new FakeFolderPickerService(), new FakeFilePickerService(), workflow);
 

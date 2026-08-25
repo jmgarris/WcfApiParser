@@ -150,6 +150,10 @@ public partial class MainViewModel : ObservableObject
 
     public bool IsClientLibrarySelected => !IsRestApiWrapperSelected;
 
+    public bool IsTransportWithMessageCredentialSelected => string.Equals(SecurityMode, "TransportWithMessageCredential", StringComparison.OrdinalIgnoreCase);
+
+    public bool IsMessageCredentialTypeVisible => IsRestApiWrapperSelected || IsTransportWithMessageCredentialSelected;
+
     public string GenerateOutputButtonText => IsRestApiWrapperSelected ? "Generate REST API Wrapper" : "Generate Class Library";
 
     partial void OnSelectedGeneratedOutputKindChanged(GeneratedOutputKind value)
@@ -157,6 +161,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsRestApiWrapperSelected));
         OnPropertyChanged(nameof(IsClientLibrarySelected));
         OnPropertyChanged(nameof(GenerateOutputButtonText));
+        OnPropertyChanged(nameof(IsMessageCredentialTypeVisible));
         if (value == GeneratedOutputKind.NetFramework48RestApiWrapper) EnableSwagger = true;
     }
 
@@ -171,6 +176,20 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private string securityMode = "Transport";
+
+    partial void OnSecurityModeChanged(string value)
+    {
+        if (string.Equals(value, "TransportWithMessageCredential", StringComparison.OrdinalIgnoreCase))
+        {
+            SelectedGeneratedOutputKind = GeneratedOutputKind.NetFramework48RestApiWrapper;
+            EnableSwagger = true;
+            if (string.Equals(MessageClientCredentialType, "None", StringComparison.OrdinalIgnoreCase)) MessageClientCredentialType = "UserName";
+            AddStatus("Info", "TransportWithMessageCredential requires the .NET Framework 4.8 REST API wrapper. Output type was changed automatically.");
+        }
+
+        OnPropertyChanged(nameof(IsTransportWithMessageCredentialSelected));
+        OnPropertyChanged(nameof(IsMessageCredentialTypeVisible));
+    }
 
     [ObservableProperty]
     private string tcpClientCredentialType = "Windows";
