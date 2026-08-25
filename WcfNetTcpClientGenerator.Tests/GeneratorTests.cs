@@ -63,6 +63,21 @@ public sealed class GeneratorTests
     }
 
     [Test]
+    public void RestWrapperProjectFile_SwaggerIsConditional()
+    {
+        var generator = new ProjectFileGenerator();
+        var withSwagger = generator.Generate("Contoso.Rest", new ClientLibraryGenerationOptions { OutputKind = GeneratedOutputKind.NetFramework48RestApiWrapper, EnableSwagger = true });
+        var withoutSwagger = generator.Generate("Contoso.Rest", new ClientLibraryGenerationOptions { OutputKind = GeneratedOutputKind.NetFramework48RestApiWrapper, EnableSwagger = false });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(withSwagger, Does.Contain("Swashbuckle.Core\" Version=\"5.6.0"));
+            Assert.That(withSwagger, Does.Contain("<DocumentationFile>"));
+            Assert.That(withoutSwagger, Does.Not.Contain("Swashbuckle.Core"));
+        });
+    }
+
+    [Test]
     public void WrapperInterfaceGenerator_EmitsAsyncMethods()
     {
         var generator = new WrapperInterfaceGenerator();
