@@ -73,7 +73,14 @@ public sealed class GeneratorTests
         {
             Assert.That(withSwagger, Does.Contain("Swashbuckle.Core\" Version=\"5.6.0"));
             Assert.That(withSwagger, Does.Contain("<DocumentationFile>"));
+            Assert.That(withSwagger, Does.Contain("{349c5851-65df-11da-9384-00065b846f21};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}"));
+            Assert.That(withSwagger, Does.Contain("Microsoft.WebApplication.targets"));
+            Assert.That(withSwagger, Does.Contain("<UseIISExpress>true</UseIISExpress>"));
+            Assert.That(withSwagger, Does.Contain("<Content Include=\"Web.config\" />"));
+            Assert.That(withSwagger, Does.Contain("<Compile Include=\"Global.asax.cs\"><DependentUpon>Global.asax</DependentUpon>"));
+            Assert.That(withSwagger, Does.Not.Contain("**\\*.cs"));
             Assert.That(withoutSwagger, Does.Not.Contain("Swashbuckle.Core"));
+            Assert.That(withoutSwagger, Does.Not.Contain("SwaggerConfig.cs"));
         });
     }
 
