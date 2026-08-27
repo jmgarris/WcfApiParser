@@ -1,3 +1,5 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using WcfNetTcpClientGenerator.Core;
 
 namespace WcfNetTcpClientGenerator.Tests;
@@ -39,6 +41,24 @@ public sealed class RestControllerDocumentationTests
             Assert.That(CountOccurrences(source, "<param name=\"patientId\">"), Is.EqualTo(1));
             Assert.That(CountOccurrences(source, "<returns>"), Is.EqualTo(1));
         });
+    }
+
+    [Test]
+    public async Task GenerateAsync_PrefixesEveryPhysicalLineOfMultilineXml()
+    {
+        var source = await GenerateSourceAsync("""
+            <summary>Gets a patient.
+            Returns complete patient details.
+            Includes demographic fields.
+            </summary>
+            <param name="patientId">The patient identifier.
+            Required for lookup.</param>
+            <returns>The matching patient.
+            Returns null when no patient exists.</returns>
+            """);
+
+        AssertAllDocumentationLinesAreComments(source);
+        Assert.That(CSharpSyntaxTree.ParseText(source).GetDiagnostics().Where(diagnostic => diagnostic.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error), Is.Empty);
     }
 
     [Test]
@@ -96,6 +116,29 @@ public sealed class RestControllerDocumentationTests
 
     private static int CountOccurrences(string value, string match)
         => value.Split(match, StringSplitOptions.None).Length - 1;
+
+    private static void AssertAllDocumentationLinesAreComments(string source)
+    {
+        var rawDocumentationLine = source
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Split('\n')
+            .FirstOrDefault(line =>
+            {
+                var trimmed = line.TrimStart();
+                return (trimmed.StartsWith("<summary", StringComparison.Ordinal)
+                        || trimmed.StartsWith("</summary", StringComparison.Ordinal)
+                        || trimmed.StartsWith("<param", StringComparison.Ordinal)
+                        || trimmed.StartsWith("</param", StringComparison.Ordinal)
+                        || trimmed.StartsWith("<returns", StringComparison.Ordinal)
+                        || trimmed.StartsWith("</returns", StringComparison.Ordinal)
+                        || trimmed.StartsWith("<remarks", StringComparison.Ordinal)
+                        || trimmed.StartsWith("</remarks", StringComparison.Ordinal)
+                        || trimmed is "Returns complete patient details." or "Includes demographic fields." or "Required for lookup." or "Returns null when no patient exists.")
+                    && !trimmed.StartsWith("///", StringComparison.Ordinal);
+            });
+
+        Assert.That(rawDocumentationLine, Is.Null, $"Documentation was emitted as raw C# source: {rawDocumentationLine}");
+    }
 
     private sealed class StaticDocumentationProvider(string documentation) : IMethodDocumentationProvider
     {

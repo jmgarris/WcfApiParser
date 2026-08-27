@@ -97,9 +97,7 @@ public sealed class RestControllerGenerator
 
             foreach (var element in root.Elements())
             {
-                builder.Append(indentation);
-                builder.Append("/// ");
-                builder.AppendLine(element.ToString(SaveOptions.DisableFormatting));
+                AppendCommentLines(builder, element.ToString(SaveOptions.DisableFormatting), indentation);
             }
 
             return true;
@@ -107,6 +105,26 @@ public sealed class RestControllerGenerator
         catch (System.Xml.XmlException)
         {
             return false;
+        }
+    }
+
+    private static void AppendCommentLines(StringBuilder builder, string xmlDocumentation, string indentation)
+    {
+        var lines = xmlDocumentation
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace('\r', '\n')
+            .Split('\n');
+
+        foreach (var line in lines)
+        {
+            builder.Append(indentation);
+            builder.Append("///");
+            if (line.Length > 0)
+            {
+                builder.Append(' ');
+                builder.Append(line);
+            }
+            builder.AppendLine();
         }
     }
 
