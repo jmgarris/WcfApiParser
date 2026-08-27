@@ -12,6 +12,7 @@ public sealed class RestControllerGenerator
         var name = CSharpIdentifierSanitizer.SanitizeTypeName(contract.ContractName);
         var client = CSharpIdentifierSanitizer.SanitizeTypeName(contract.ClientClassName);
         var builder = new StringBuilder();
+        builder.AppendLine("using System;");
         builder.AppendLine("using System.Net;");
         builder.AppendLine("using System.ServiceModel;");
         builder.AppendLine("using System.Threading.Tasks;");
