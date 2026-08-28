@@ -92,7 +92,7 @@
                     <TextBlock Text="Generated output type" />
                     <ComboBox ItemsSource="{Binding GeneratedOutputKinds}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedGeneratedOutputKind, Mode=TwoWay}" />
                 </StackPanel>
-                <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Text="TransportWithMessageCredential requires the .NET Framework 4.8 REST API wrapper because the .NET 10 generated client path does not support this WCF net.tcp security mode." TextWrapping="Wrap" Opacity="0.75" />
+                <TextBlock Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Text="TransportWithMessageCredential requires the .NET Framework 4.8.1 REST API wrapper because the .NET 10 generated client path does not support this WCF net.tcp security mode." TextWrapping="Wrap" Opacity="0.75" />
                 <CheckBox Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Content="Enable Swagger / API documentation" IsChecked="{Binding EnableSwagger, Mode=TwoWay}" Visibility="{Binding IsRestApiWrapperSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
                 <StackPanel Grid.Row="6" Grid.Column="0" Spacing="6" Visibility="{Binding IsClientLibrarySelected, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -193,6 +193,25 @@
                         <PasswordBox PasswordChanged="PasswordBox_OnPasswordChanged" />
                     </StackPanel>
                 </Grid>
+
+                <StackPanel Grid.Row="18" Grid.Column="0" Grid.ColumnSpan="2" Spacing="8" Visibility="{Binding IsCertificateConfigurationVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="Client certificate" FontSize="18" FontWeight="SemiBold" />
+                    <ComboBox Header="Certificate source" ItemsSource="{Binding CertificateSources}" SelectedItem="{Binding ClientCertificateSource, Mode=TwoWay}" />
+                    <Grid ColumnSpacing="12" Visibility="{Binding IsCertificateStoreSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <ComboBox Header="Store location" ItemsSource="{Binding CertificateStoreLocations}" SelectedItem="{Binding ClientCertificateStoreLocation, Mode=TwoWay}" />
+                        <ComboBox Grid.Column="1" Header="Store name" ItemsSource="{Binding CertificateStoreNames}" SelectedItem="{Binding ClientCertificateStoreName, Mode=TwoWay}" />
+                        <ComboBox Grid.Column="2" Header="Find type" ItemsSource="{Binding CertificateFindTypes}" SelectedItem="{Binding ClientCertificateFindType, Mode=TwoWay}" />
+                    </Grid>
+                    <TextBox Header="Certificate find value" Text="{Binding ClientCertificateFindValue, Mode=TwoWay}" Visibility="{Binding IsCertificateStoreSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <StackPanel Spacing="6" Visibility="{Binding IsCertificateFileSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBox Header="Certificate file path (.pfx, .p12, .cer, .crt)" Text="{Binding ClientCertificateFilePath, Mode=TwoWay}" />
+                        <ComboBox Header="Certificate password source" ItemsSource="{Binding CertificatePasswordSources}" SelectedItem="{Binding ClientCertificateFilePasswordSource, Mode=TwoWay}" />
+                        <TextBox Header="Password environment variable name" Text="{Binding ClientCertificateFilePasswordEnvironmentVariableName, Mode=TwoWay}" />
+                        <TextBox Header="Password app setting name" Text="{Binding ClientCertificateFilePasswordAppSettingName, Mode=TwoWay}" />
+                    </StackPanel>
+                    <TextBlock Text="Prefer a certificate thumbprint. Do not place certificate passwords in source control or plain Web.config." TextWrapping="Wrap" Opacity="0.75" />
+                </StackPanel>
 
                 <StackPanel Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="2" Spacing="4">
                     <TextBlock Text="AI Documentation" FontSize="20" FontWeight="SemiBold" />

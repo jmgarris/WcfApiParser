@@ -63,11 +63,16 @@ public partial class MainViewModel : ObservableObject
         "Certificate",
         "UserName"
     ];
+    public IReadOnlyList<string> CertificateSources { get; } = ["Store", "File"];
+    public IReadOnlyList<string> CertificateStoreLocations { get; } = ["CurrentUser", "LocalMachine"];
+    public IReadOnlyList<string> CertificateStoreNames { get; } = ["My", "Root", "CertificateAuthority", "TrustedPeople", "TrustedPublisher"];
+    public IReadOnlyList<string> CertificateFindTypes { get; } = ["FindByThumbprint", "FindBySubjectName", "FindBySubjectDistinguishedName", "FindByIssuerName", "FindBySerialNumber"];
+    public IReadOnlyList<string> CertificatePasswordSources { get; } = ["None", "EnvironmentVariable", "AppSettingName"];
 
     public IReadOnlyList<SelectionOption<GeneratedOutputKind>> GeneratedOutputKinds { get; } =
     [
         new SelectionOption<GeneratedOutputKind> { Value = GeneratedOutputKind.NetTcpClientLibrary, Label = "WCF client library (.NET 10)" },
-        new SelectionOption<GeneratedOutputKind> { Value = GeneratedOutputKind.NetFramework48RestApiWrapper, Label = "REST API wrapper for WCF net.tcp (.NET Framework 4.8)" }
+        new SelectionOption<GeneratedOutputKind> { Value = GeneratedOutputKind.NetFramework48RestApiWrapper, Label = "REST API wrapper for WCF net.tcp (.NET Framework 4.8.1)" }
     ];
 
     public IReadOnlyList<SelectionOption<DocumentationProviderKind>> DocumentationProviders { get; } =
@@ -154,6 +159,10 @@ public partial class MainViewModel : ObservableObject
 
     public bool IsMessageCredentialTypeVisible => IsRestApiWrapperSelected || IsTransportWithMessageCredentialSelected;
 
+    public bool IsCertificateConfigurationVisible => string.Equals(TcpTransportClientCredentialType, "Certificate", StringComparison.OrdinalIgnoreCase) || string.Equals(MessageClientCredentialType, "Certificate", StringComparison.OrdinalIgnoreCase);
+    public bool IsCertificateStoreSelected => string.Equals(ClientCertificateSource, "Store", StringComparison.OrdinalIgnoreCase);
+    public bool IsCertificateFileSelected => !IsCertificateStoreSelected;
+
     public string GenerateOutputButtonText => IsRestApiWrapperSelected ? "Generate REST API Wrapper" : "Generate Class Library";
 
     partial void OnSelectedGeneratedOutputKindChanged(GeneratedOutputKind value)
@@ -162,6 +171,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsClientLibrarySelected));
         OnPropertyChanged(nameof(GenerateOutputButtonText));
         OnPropertyChanged(nameof(IsMessageCredentialTypeVisible));
+        OnPropertyChanged(nameof(IsCertificateConfigurationVisible));
         if (value == GeneratedOutputKind.NetFramework48RestApiWrapper) EnableSwagger = true;
     }
 
@@ -184,7 +194,7 @@ public partial class MainViewModel : ObservableObject
             SelectedGeneratedOutputKind = GeneratedOutputKind.NetFramework48RestApiWrapper;
             EnableSwagger = true;
             if (string.Equals(MessageClientCredentialType, "None", StringComparison.OrdinalIgnoreCase)) MessageClientCredentialType = "UserName";
-            AddStatus("Info", "TransportWithMessageCredential requires the .NET Framework 4.8 REST API wrapper. Output type was changed automatically.");
+            AddStatus("Info", "TransportWithMessageCredential requires the .NET Framework 4.8.1 REST API wrapper. Output type was changed automatically.");
         }
 
         OnPropertyChanged(nameof(IsTransportWithMessageCredentialSelected));
@@ -199,6 +209,21 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private string messageClientCredentialType = "None";
+
+    partial void OnTcpTransportClientCredentialTypeChanged(string value) => OnPropertyChanged(nameof(IsCertificateConfigurationVisible));
+    partial void OnMessageClientCredentialTypeChanged(string value) => OnPropertyChanged(nameof(IsCertificateConfigurationVisible));
+
+    [ObservableProperty] private string clientCertificateSource = "Store";
+    [ObservableProperty] private string clientCertificateStoreLocation = "CurrentUser";
+    [ObservableProperty] private string clientCertificateStoreName = "My";
+    [ObservableProperty] private string clientCertificateFindType = "FindByThumbprint";
+    [ObservableProperty] private string clientCertificateFindValue = string.Empty;
+    [ObservableProperty] private string clientCertificateFilePath = string.Empty;
+    [ObservableProperty] private string clientCertificateFilePasswordSource = "EnvironmentVariable";
+    [ObservableProperty] private string clientCertificateFilePasswordEnvironmentVariableName = "WCF_CLIENT_CERT_PASSWORD";
+    [ObservableProperty] private string clientCertificateFilePasswordAppSettingName = "Wcf:ClientCertificatePassword";
+
+    partial void OnClientCertificateSourceChanged(string value) { OnPropertyChanged(nameof(IsCertificateStoreSelected)); OnPropertyChanged(nameof(IsCertificateFileSelected)); }
 
     [ObservableProperty]
     private bool reliableSessionEnabled;
@@ -399,9 +424,9 @@ public partial class MainViewModel : ObservableObject
 
     private async Task GenerateClassLibraryAsync()
     {
-        BusyMessage = IsRestApiWrapperSelected ? "Generating .NET Framework 4.8 REST API wrapper..." : "Generating class library...";
+        BusyMessage = IsRestApiWrapperSelected ? "Generating .NET Framework 4.8.1 REST API wrapper..." : "Generating class library...";
         ProgressPercentage = 50;
-        AddStatus("Info", IsRestApiWrapperSelected ? "Generating .NET Framework 4.8 REST API wrapper..." : "Generating client library.");
+        AddStatus("Info", IsRestApiWrapperSelected ? "Generating .NET Framework 4.8.1 REST API wrapper..." : "Generating client library.");
         AnnounceDocumentationProvider();
 
         var result = await _workflowService.GenerateAsync(BuildGenerationOptions(), CancellationToken.None);
@@ -532,6 +557,15 @@ public partial class MainViewModel : ObservableObject
             TcpClientCredentialType = TcpClientCredentialType,
             TcpTransportClientCredentialType = TcpTransportClientCredentialType,
             MessageClientCredentialType = MessageClientCredentialType,
+            ClientCertificateSource = ClientCertificateSource,
+            ClientCertificateStoreLocation = ClientCertificateStoreLocation,
+            ClientCertificateStoreName = ClientCertificateStoreName,
+            ClientCertificateFindType = ClientCertificateFindType,
+            ClientCertificateFindValue = ClientCertificateFindValue,
+            ClientCertificateFilePath = ClientCertificateFilePath,
+            ClientCertificateFilePasswordSource = ClientCertificateFilePasswordSource,
+            ClientCertificateFilePasswordEnvironmentVariableName = ClientCertificateFilePasswordEnvironmentVariableName,
+            ClientCertificateFilePasswordAppSettingName = ClientCertificateFilePasswordAppSettingName,
             ReliableSessionEnabled = ReliableSessionEnabled,
             OpenTimeout = OpenTimeout,
             SendTimeout = SendTimeout,

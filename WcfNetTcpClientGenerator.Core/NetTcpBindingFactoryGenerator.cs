@@ -47,6 +47,22 @@ public sealed class NetTcpBindingFactoryGenerator
             diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, $"Unsupported message client credential type: {options.MessageClientCredentialType}", "UNSUPPORTED_MESSAGE_CREDENTIAL_TYPE"));
         }
 
+        var usesCertificate = options.OutputKind == GeneratedOutputKind.NetFramework48RestApiWrapper
+            && (string.Equals(options.TcpTransportClientCredentialType, "Certificate", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(options.MessageClientCredentialType, "Certificate", StringComparison.OrdinalIgnoreCase));
+        if (usesCertificate && string.Equals(options.ClientCertificateSource, "Store", StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(options.ClientCertificateFindValue))
+        {
+            diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, "A certificate find value is required when using the Windows certificate store.", "CERTIFICATE_FIND_VALUE_REQUIRED"));
+        }
+        if (usesCertificate && string.Equals(options.ClientCertificateSource, "File", StringComparison.OrdinalIgnoreCase))
+        {
+            var extension = Path.GetExtension(options.ClientCertificateFilePath);
+            if (string.IsNullOrWhiteSpace(options.ClientCertificateFilePath)) diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, "A certificate file path is required.", "CERTIFICATE_FILE_REQUIRED"));
+            else if (!new[] { ".pfx", ".p12", ".cer", ".crt" }.Contains(extension, StringComparer.OrdinalIgnoreCase)) diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, "Certificate files must be .pfx, .p12, .cer, or .crt.", "CERTIFICATE_FILE_EXTENSION_INVALID"));
+            else if (!File.Exists(options.ClientCertificateFilePath)) diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Warning, "The certificate file does not exist at the selected path.", "CERTIFICATE_FILE_NOT_FOUND"));
+        }
+
         return diagnostics;
     }
 

@@ -119,6 +119,24 @@ public sealed class GeneratorTests
     }
 
     [Test]
+    public void RestBinding_MapsCertificateCredentials()
+    {
+        var source = new NetTcpBindingFactoryGenerator().Generate("Contoso.Rest", new ClientLibraryGenerationOptions
+        {
+            OutputKind = GeneratedOutputKind.NetFramework48RestApiWrapper,
+            TcpTransportClientCredentialType = "Certificate",
+            MessageClientCredentialType = "Certificate",
+            ClientCertificateFindValue = "AB CD"
+        });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(source, Does.Contain("TcpClientCredentialType.Certificate"));
+            Assert.That(source, Does.Contain("MessageCredentialType.Certificate"));
+        });
+    }
+
+    [Test]
     public void WrapperInterfaceGenerator_EmitsAsyncMethods()
     {
         var generator = new WrapperInterfaceGenerator();

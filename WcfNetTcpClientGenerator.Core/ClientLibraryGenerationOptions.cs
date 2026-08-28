@@ -33,6 +33,16 @@ public sealed class ClientLibraryGenerationOptions
     /// <summary>Credential carried in the WCF message when message credentials are enabled.</summary>
     public string MessageClientCredentialType { get; init; } = "None";
 
+    public string ClientCertificateSource { get; init; } = "Store";
+    public string ClientCertificateStoreLocation { get; init; } = "CurrentUser";
+    public string ClientCertificateStoreName { get; init; } = "My";
+    public string ClientCertificateFindType { get; init; } = "FindByThumbprint";
+    public string ClientCertificateFindValue { get; init; } = string.Empty;
+    public string ClientCertificateFilePath { get; init; } = string.Empty;
+    public string ClientCertificateFilePasswordSource { get; init; } = "EnvironmentVariable";
+    public string ClientCertificateFilePasswordEnvironmentVariableName { get; init; } = "WCF_CLIENT_CERT_PASSWORD";
+    public string ClientCertificateFilePasswordAppSettingName { get; init; } = "Wcf:ClientCertificatePassword";
+
     public bool ReliableSessionEnabled { get; init; }
 
     public string OpenTimeout { get; init; } = "00:00:30";
