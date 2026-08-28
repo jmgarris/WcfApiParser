@@ -16,7 +16,6 @@ public sealed class FilePickerService : IFilePickerService
     {
         var picker = new FileOpenPicker();
         picker.FileTypeFilter.Add(".exe");
-        picker.FileTypeFilter.Add(".*");
         InitializeWithWindow.Initialize(picker, _windowHandle);
 
         var file = await picker.PickSingleFileAsync();
