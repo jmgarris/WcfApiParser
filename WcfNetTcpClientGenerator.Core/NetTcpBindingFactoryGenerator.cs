@@ -1,4 +1,5 @@
 using System.Text;
+using System.Security.Cryptography.X509Certificates;
 
 namespace WcfNetTcpClientGenerator.Core;
 
@@ -45,6 +46,62 @@ public sealed class NetTcpBindingFactoryGenerator
         if (!SupportedCredentialTypes.Contains(options.MessageClientCredentialType))
         {
             diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, $"Unsupported message client credential type: {options.MessageClientCredentialType}", "UNSUPPORTED_MESSAGE_CREDENTIAL_TYPE"));
+        }
+
+        var usesCertificate = options.OutputKind == GeneratedOutputKind.NetFramework48RestApiWrapper
+            && (string.Equals(options.TcpTransportClientCredentialType, "Certificate", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(options.MessageClientCredentialType, "Certificate", StringComparison.OrdinalIgnoreCase));
+        if (!usesCertificate)
+        {
+            return diagnostics;
+        }
+
+        var isStoreSource = string.Equals(options.ClientCertificateSource, "Store", StringComparison.OrdinalIgnoreCase);
+        var isFileSource = string.Equals(options.ClientCertificateSource, "File", StringComparison.OrdinalIgnoreCase);
+        if (!isStoreSource && !isFileSource)
+        {
+            diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, $"Unsupported client certificate source: {options.ClientCertificateSource}", "UNSUPPORTED_CERTIFICATE_SOURCE"));
+            return diagnostics;
+        }
+
+        if (!Enum.TryParse<StoreLocation>(options.ClientCertificateStoreLocation, ignoreCase: true, out _))
+        {
+            diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, $"Unsupported certificate store location: {options.ClientCertificateStoreLocation}", "UNSUPPORTED_CERTIFICATE_STORE_LOCATION"));
+        }
+        if (!Enum.TryParse<StoreName>(options.ClientCertificateStoreName, ignoreCase: true, out _))
+        {
+            diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, $"Unsupported certificate store name: {options.ClientCertificateStoreName}", "UNSUPPORTED_CERTIFICATE_STORE_NAME"));
+        }
+        if (!Enum.TryParse<X509FindType>(options.ClientCertificateFindType, ignoreCase: true, out _))
+        {
+            diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, $"Unsupported certificate find type: {options.ClientCertificateFindType}", "UNSUPPORTED_CERTIFICATE_FIND_TYPE"));
+        }
+
+        if (isStoreSource && string.IsNullOrWhiteSpace(options.ClientCertificateFindValue))
+        {
+            diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, "A certificate find value is required when using the Windows certificate store.", "CERTIFICATE_FIND_VALUE_REQUIRED"));
+        }
+        if (isFileSource)
+        {
+            var extension = Path.GetExtension(options.ClientCertificateFilePath);
+            if (string.IsNullOrWhiteSpace(options.ClientCertificateFilePath)) diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, "A certificate file path is required.", "CERTIFICATE_FILE_REQUIRED"));
+            else if (!new[] { ".pfx", ".p12" }.Contains(extension, StringComparer.OrdinalIgnoreCase)) diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, "Certificate files must be .pfx or .p12.", "CERTIFICATE_FILE_EXTENSION_INVALID"));
+            else if (!File.Exists(options.ClientCertificateFilePath)) diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Warning, "The certificate file does not exist at the selected path.", "CERTIFICATE_FILE_NOT_FOUND"));
+
+            if (string.Equals(options.ClientCertificateFilePasswordSource, "EnvironmentVariable", StringComparison.OrdinalIgnoreCase)
+                && string.IsNullOrWhiteSpace(options.ClientCertificateFilePasswordEnvironmentVariableName))
+            {
+                diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, "A certificate password environment variable name is required.", "CERTIFICATE_PASSWORD_ENVIRONMENT_VARIABLE_REQUIRED"));
+            }
+            else if (string.Equals(options.ClientCertificateFilePasswordSource, "AppSettingName", StringComparison.OrdinalIgnoreCase)
+                && string.IsNullOrWhiteSpace(options.ClientCertificateFilePasswordAppSettingName))
+            {
+                diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, "A certificate password app-setting key is required.", "CERTIFICATE_PASSWORD_APPSETTING_REQUIRED"));
+            }
+            else if (!new[] { "None", "EnvironmentVariable", "AppSettingName" }.Contains(options.ClientCertificateFilePasswordSource, StringComparer.OrdinalIgnoreCase))
+            {
+                diagnostics.Add(new GenerationDiagnostic(DiagnosticSeverity.Error, $"Unsupported certificate password source: {options.ClientCertificateFilePasswordSource}", "UNSUPPORTED_CERTIFICATE_PASSWORD_SOURCE"));
+            }
         }
 
         return diagnostics;
