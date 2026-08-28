@@ -245,24 +245,146 @@ public sealed class ClientLibraryGenerator
     {
         var routes = metadata.Contracts.SelectMany(c => c.Operations.Select(o => "- POST /api/" + RestControllerGenerator.ToRoute(c.ContractName.Replace("Service", "")) + "/" + RestControllerGenerator.ToRoute(o.OperationName) + " -> " + c.ClientClassName + "." + o.ProxyMethodName));
         var swagger = enableSwagger ? "\n\n## Swagger\n\n- UI: `/swagger` or `/swagger/ui/index`\n- OpenAPI JSON: `/swagger/docs/v1`" : string.Empty;
-        return $"# {ns}\n\n.NET Framework 4.8.1 ASP.NET Web API 2 REST API wrapper for a WCF net.tcp service. Build the web application in Visual Studio and deploy it to IIS.\n\n## Configuration\n\nConfigure these `Web.config` app settings; do not store passwords or other secrets there:\n\n- `Wcf:EndpointUrl`\n- `Wcf:SecurityMode`\n- `Wcf:TcpTransportClientCredentialType`\n- `Wcf:MessageClientCredentialType`\n- `Wcf:ReliableSessionEnabled`\n- `Wcf:OpenTimeout`, `Wcf:CloseTimeout`, `Wcf:SendTimeout`, and `Wcf:ReceiveTimeout`\n- `Wcf:MaxReceivedMessageSize`\n\n## Client certificates\n\nFor Windows-store certificates, configure `Wcf:ClientCertificateSource=Store` plus store location, store name, find type, and find value. Prefer `FindByThumbprint`. For files, use `Wcf:ClientCertificateSource=File` and `Wcf:ClientCertificateFilePath`. Set a password through `Wcf:ClientCertificateFilePasswordEnvironmentVariableName` or a protected deployment app setting; never commit certificate files or passwords.\n\n## Routes\n" + string.Join("\n", routes) + swagger;
+        return $"# {ns}\n\n.NET Framework 4.8.1 ASP.NET Web API 2 REST API wrapper for a WCF net.tcp service. Build the web application in Visual Studio and deploy it to IIS.\n\n## Configuration\n\nConfigure these `Web.config` app settings; do not store passwords or other secrets there:\n\n- `Wcf:EndpointUrl`\n- `Wcf:SecurityMode`\n- `Wcf:TcpTransportClientCredentialType`\n- `Wcf:MessageClientCredentialType`\n- `Wcf:ReliableSessionEnabled`\n- `Wcf:OpenTimeout`, `Wcf:CloseTimeout`, `Wcf:SendTimeout`, and `Wcf:ReceiveTimeout`\n- `Wcf:MaxReceivedMessageSize`\n\n## Client certificates\n\nFor Windows-store certificates, configure `Wcf:ClientCertificateSource=Store` plus store location, store name, find type, and find value. Prefer `FindByThumbprint`. For files, use `Wcf:ClientCertificateSource=File` and a `.pfx` or `.p12` file with a private key. Set a password through `Wcf:ClientCertificateFilePasswordEnvironmentVariableName` or a protected deployment app setting; never commit certificate files or passwords.\n\n## Routes\n" + string.Join("\n", routes) + swagger;
     }
     private static string GenerateSwaggerConfig(string ns) => $"using System.Web.Http; using WebActivatorEx; using Swashbuckle.Application; [assembly: PreApplicationStartMethod(typeof({ns}.App_Start.SwaggerConfig), \"Register\")] namespace {ns}.App_Start {{ public static class SwaggerConfig {{ public static void Register() {{ GlobalConfiguration.Configuration.EnableSwagger(c => {{ c.SingleApiVersion(\"v1\", \"{ns} REST API\"); c.DescribeAllEnumsAsStrings(); c.IncludeXmlComments(GetXmlCommentsPath()); }}).EnableSwaggerUi(c => {{ }}); }} private static string GetXmlCommentsPath() {{ return System.String.Format(\"{{0}}\\\\bin\\\\{{1}}.XML\", System.AppDomain.CurrentDomain.BaseDirectory, \"{ns}\"); }} }} }}";
     private static string GenerateWebApiConfig(string ns) => $"using System.Web.Http; namespace {ns}.App_Start {{ public static class WebApiConfig {{ public static void Register(HttpConfiguration config) {{ config.MapHttpAttributeRoutes(); config.Routes.MapHttpRoute(\"DefaultApi\", \"api/{{controller}}/{{action}}/{{id}}\", new {{ id = RouteParameter.Optional }}); config.Formatters.Remove(config.Formatters.XmlFormatter); }} }} }}";
-    private static string GenerateRestOptions(string ns, ClientLibraryGenerationOptions options) => $"using System; using System.Configuration; namespace {ns}.Wcf {{ public sealed class NetTcpWcfClientOptions {{ public string EndpointUrl {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:EndpointUrl\"]; public string SecurityMode {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:SecurityMode\"] ?? \"Transport\"; public string TcpTransportClientCredentialType {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:TcpTransportClientCredentialType\"] ?? \"Windows\"; public string MessageClientCredentialType {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:MessageClientCredentialType\"] ?? \"None\"; public bool ReliableSessionEnabled {{ get; set; }} = bool.TryParse(ConfigurationManager.AppSettings[\"Wcf:ReliableSessionEnabled\"], out var reliableSessionEnabled) && reliableSessionEnabled; public TimeSpan OpenTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:OpenTimeout\"] ?? \"00:00:30\"); public TimeSpan CloseTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:CloseTimeout\"] ?? \"00:00:30\"); public TimeSpan SendTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:SendTimeout\"] ?? \"00:01:40\"); public TimeSpan ReceiveTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:ReceiveTimeout\"] ?? \"00:01:40\"); public long MaxReceivedMessageSize {{ get; set; }} = long.Parse(ConfigurationManager.AppSettings[\"Wcf:MaxReceivedMessageSize\"] ?? \"65536\"); public string ClientCertificateSource {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:ClientCertificateSource\"] ?? \"Store\"; public string ClientCertificateStoreLocation {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:ClientCertificateStoreLocation\"] ?? \"CurrentUser\"; public string ClientCertificateStoreName {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:ClientCertificateStoreName\"] ?? \"My\"; public string ClientCertificateFindType {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:ClientCertificateFindType\"] ?? \"FindByThumbprint\"; public string ClientCertificateFindValue {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:ClientCertificateFindValue\"] ?? string.Empty; public string ClientCertificateFilePath {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:ClientCertificateFilePath\"] ?? string.Empty; public string ClientCertificateFilePasswordSource {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:ClientCertificateFilePasswordSource\"] ?? \"EnvironmentVariable\"; public string ClientCertificateFilePasswordEnvironmentVariableName {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:ClientCertificateFilePasswordEnvironmentVariableName\"] ?? string.Empty; public string ClientCertificateFilePasswordAppSettingName {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:ClientCertificateFilePasswordAppSettingName\"] ?? string.Empty; public string Username {{ get; set; }} public string Password {{ get; set; }} }} }}";
+    private static string GenerateRestOptions(string ns, ClientLibraryGenerationOptions options) => $$"""
+using System;
+using System.Configuration;
+
+namespace {{ns}}.Wcf;
+
+public sealed class NetTcpWcfClientOptions
+{
+    public string EndpointUrl { get; set; } = ConfigurationManager.AppSettings["Wcf:EndpointUrl"];
+    public string SecurityMode { get; set; } = ConfigurationManager.AppSettings["Wcf:SecurityMode"] ?? "Transport";
+    public string TcpTransportClientCredentialType { get; set; } = ConfigurationManager.AppSettings["Wcf:TcpTransportClientCredentialType"] ?? "Windows";
+    public string MessageClientCredentialType { get; set; } = ConfigurationManager.AppSettings["Wcf:MessageClientCredentialType"] ?? "None";
+    public bool ReliableSessionEnabled { get; set; } = bool.TryParse(ConfigurationManager.AppSettings["Wcf:ReliableSessionEnabled"], out var reliableSessionEnabled) && reliableSessionEnabled;
+    public TimeSpan OpenTimeout { get; set; } = TimeSpan.Parse(ConfigurationManager.AppSettings["Wcf:OpenTimeout"] ?? "00:00:30");
+    public TimeSpan CloseTimeout { get; set; } = TimeSpan.Parse(ConfigurationManager.AppSettings["Wcf:CloseTimeout"] ?? "00:00:30");
+    public TimeSpan SendTimeout { get; set; } = TimeSpan.Parse(ConfigurationManager.AppSettings["Wcf:SendTimeout"] ?? "00:01:40");
+    public TimeSpan ReceiveTimeout { get; set; } = TimeSpan.Parse(ConfigurationManager.AppSettings["Wcf:ReceiveTimeout"] ?? "00:01:40");
+    public long MaxReceivedMessageSize { get; set; } = long.Parse(ConfigurationManager.AppSettings["Wcf:MaxReceivedMessageSize"] ?? "65536");
+    public string ClientCertificateSource { get; set; } = ConfigurationManager.AppSettings["Wcf:ClientCertificateSource"] ?? "Store";
+    public string ClientCertificateStoreLocation { get; set; } = ConfigurationManager.AppSettings["Wcf:ClientCertificateStoreLocation"] ?? "CurrentUser";
+    public string ClientCertificateStoreName { get; set; } = ConfigurationManager.AppSettings["Wcf:ClientCertificateStoreName"] ?? "My";
+    public string ClientCertificateFindType { get; set; } = ConfigurationManager.AppSettings["Wcf:ClientCertificateFindType"] ?? "FindByThumbprint";
+    public string ClientCertificateFindValue { get; set; } = ConfigurationManager.AppSettings["Wcf:ClientCertificateFindValue"] ?? string.Empty;
+    public string ClientCertificateFilePath { get; set; } = ConfigurationManager.AppSettings["Wcf:ClientCertificateFilePath"] ?? string.Empty;
+    public string ClientCertificateFilePasswordSource { get; set; } = ConfigurationManager.AppSettings["Wcf:ClientCertificateFilePasswordSource"] ?? "EnvironmentVariable";
+    public string ClientCertificateFilePasswordEnvironmentVariableName { get; set; } = ConfigurationManager.AppSettings["Wcf:ClientCertificateFilePasswordEnvironmentVariableName"] ?? string.Empty;
+    public string ClientCertificateFilePasswordAppSettingName { get; set; } = ConfigurationManager.AppSettings["Wcf:ClientCertificateFilePasswordAppSettingName"] ?? string.Empty;
+    public string Username { get; set; }
+    public string Password { get; set; }
+}
+""";
     private static string GenerateWcfFactory(string ns, WcfServiceMetadataModel metadata)
     {
-        var b = new StringBuilder($"using System; using System.Configuration; using System.ServiceModel; using System.Security.Cryptography.X509Certificates; using ServiceReference = {metadata.ServiceNamespace}; namespace {ns}.Wcf {{ public sealed class WcfClientFactory {{ private readonly NetTcpWcfClientOptions _options = new NetTcpWcfClientOptions(); ");
-        foreach (var c in metadata.Contracts) b.Append($"public ServiceReference.{c.ClientClassName} Create{CSharpIdentifierSanitizer.SanitizeTypeName(c.ClientClassName)}() {{ var client = new ServiceReference.{c.ClientClassName}(NetTcpBindingFactory.Create(_options), new EndpointAddress(_options.EndpointUrl)); ApplyClientCertificate(client, _options); if (_options.MessageClientCredentialType == \"UserName\" && !string.IsNullOrWhiteSpace(_options.Username) && !string.IsNullOrWhiteSpace(_options.Password)) {{ client.ClientCredentials.UserName.UserName = _options.Username; client.ClientCredentials.UserName.Password = _options.Password; }} return client; }} ");
-        return b.Append("public static void ApplyClientCertificate<T>(ClientBase<T> client, NetTcpWcfClientOptions options) where T : class { if (options.TcpTransportClientCredentialType != \"Certificate\" && options.MessageClientCredentialType != \"Certificate\") return; if (options.ClientCertificateSource == \"Store\") client.ClientCredentials.ClientCertificate.SetCertificate(ParseStoreLocation(options.ClientCertificateStoreLocation), ParseStoreName(options.ClientCertificateStoreName), ParseFindType(options.ClientCertificateFindType), NormalizeThumbprint(options.ClientCertificateFindValue)); else client.ClientCredentials.ClientCertificate.Certificate = LoadClientCertificate(options); } public static X509Certificate2 LoadClientCertificate(NetTcpWcfClientOptions options) { var password = options.ClientCertificateFilePasswordSource == \"EnvironmentVariable\" ? Environment.GetEnvironmentVariable(options.ClientCertificateFilePasswordEnvironmentVariableName) : ConfigurationManager.AppSettings[options.ClientCertificateFilePasswordAppSettingName]; return new X509Certificate2(options.ClientCertificateFilePath, password, X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet); } public static StoreLocation ParseStoreLocation(string value) => (StoreLocation)Enum.Parse(typeof(StoreLocation), value, true); public static StoreName ParseStoreName(string value) => (StoreName)Enum.Parse(typeof(StoreName), value, true); public static X509FindType ParseFindType(string value) => (X509FindType)Enum.Parse(typeof(X509FindType), value, true); public static string NormalizeThumbprint(string value) => (value ?? string.Empty).Replace(\" \", string.Empty).Replace(\"\\u200e\", string.Empty).Trim(); public void CloseOrAbort(ICommunicationObject client) { try { if (client.State != CommunicationState.Faulted) client.Close(); else client.Abort(); } catch { client.Abort(); } } } }").ToString();
-    }
-    /*
-    private static string GenerateWebApiConfig(string ns) => $"using System.Web.Http; namespace {ns}.App_Start {{ public static class WebApiConfig {{ public static void Register(HttpConfiguration config) {{ config.MapHttpAttributeRoutes(); config.Routes.MapHttpRoute(\"DefaultApi\", \"api/{{controller}}/{{action}}/{{id}}\", new {{ id = RouteParameter.Optional }}); config.Formatters.Remove(config.Formatters.XmlFormatter); }} }} }}";
-    private static string GenerateRestOptions(string ns) => $"using System; using System.Configuration; namespace {ns}.Wcf {{ public sealed class NetTcpWcfClientOptions {{ public string EndpointUrl {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:EndpointUrl\"]; public string SecurityMode {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:SecurityMode\"] ?? \"Transport\"; public string TcpClientCredentialType {{ get; set; }} = ConfigurationManager.AppSettings[\"Wcf:TcpClientCredentialType\"] ?? \"Windows\"; public TimeSpan OpenTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:OpenTimeout\"] ?? \"00:00:30\"); public TimeSpan SendTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:SendTimeout\"] ?? \"00:01:40\"); public TimeSpan ReceiveTimeout {{ get; set; }} = TimeSpan.Parse(ConfigurationManager.AppSettings[\"Wcf:ReceiveTimeout\"] ?? \"00:01:40\"); public long MaxReceivedMessageSize {{ get; set; }} = long.Parse(ConfigurationManager.AppSettings[\"Wcf:MaxReceivedMessageSize\"] ?? \"65536\"); public string Username {{ get; set; }} public string Password {{ get; set; }} }} }}";
-    private static string GenerateWcfFactory(string ns, WcfServiceMetadataModel metadata) { var b = new StringBuilder($"using System; using System.ServiceModel; using ServiceReference = {metadata.ServiceNamespace}; namespace {ns}.Wcf {{ public sealed class WcfClientFactory {{ private readonly NetTcpWcfClientOptions _options = new NetTcpWcfClientOptions(); "); foreach (var c in metadata.Contracts) b.Append($"public ServiceReference.{c.ClientClassName} Create{CSharpIdentifierSanitizer.SanitizeTypeName(c.ClientClassName)}() {{ var client = new ServiceReference.{c.ClientClassName}(NetTcpBindingFactory.Create(_options), new EndpointAddress(_options.EndpointUrl)); if (_options.TcpClientCredentialType == \"UserName\" && !string.IsNullOrWhiteSpace(_options.Username)) {{ client.ClientCredentials.UserName.UserName = _options.Username; client.ClientCredentials.UserName.Password = _options.Password; }} return client; }} "); return b.Append("public void CloseOrAbort(ICommunicationObject client) { try { if (client.State != CommunicationState.Faulted) client.Close(); else client.Abort(); } catch { client.Abort(); } } } }").ToString(); }
-    private static string GenerateRestReadme(string ns, WcfServiceMetadataModel metadata) => $"# {ns}\n\n.NET Framework 4.8 ASP.NET Web API 2 wrapper for WCF net.tcp. Configure `Wcf:EndpointUrl` and security settings in Web.config; do not store passwords there. Build in Visual Studio and deploy the IIS application pool as .NET CLR v4.0.\n\n## Routes\n" + string.Join("\n", metadata.Contracts.SelectMany(c => c.Operations.Select(o => $"- POST /api/{RestControllerGenerator.ToRoute(c.ContractName.Replace(\"Service\", \"\"))}/{RestControllerGenerator.ToRoute(o.OperationName)} → {c.ClientClassName}.{o.ProxyMethodName}")));
+        var builder = new StringBuilder($$"""
+using System;
+using System.Configuration;
+using System.Security.Cryptography.X509Certificates;
+using System.ServiceModel;
+using ServiceReference = {{metadata.ServiceNamespace}};
 
-    */
+namespace {{ns}}.Wcf;
+
+public sealed class WcfClientFactory
+{
+    private readonly NetTcpWcfClientOptions _options = new NetTcpWcfClientOptions();
+
+""");
+        foreach (var contract in metadata.Contracts)
+        {
+            builder.AppendLine($$"""
+    public ServiceReference.{{contract.ClientClassName}} Create{{CSharpIdentifierSanitizer.SanitizeTypeName(contract.ClientClassName)}}()
+    {
+        var client = new ServiceReference.{{contract.ClientClassName}}(NetTcpBindingFactory.Create(_options), new EndpointAddress(_options.EndpointUrl));
+        ApplyClientCertificate(client, _options);
+        if (_options.MessageClientCredentialType == "UserName" && !string.IsNullOrWhiteSpace(_options.Username) && !string.IsNullOrWhiteSpace(_options.Password))
+        {
+            client.ClientCredentials.UserName.UserName = _options.Username;
+            client.ClientCredentials.UserName.Password = _options.Password;
+        }
+
+        return client;
+    }
+""");
+        }
+
+        return builder.Append("""
+    public static void ApplyClientCertificate<T>(ClientBase<T> client, NetTcpWcfClientOptions options)
+        where T : class
+    {
+        if (!string.Equals(options.TcpTransportClientCredentialType, "Certificate", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(options.MessageClientCredentialType, "Certificate", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (string.Equals(options.ClientCertificateSource, "Store", StringComparison.OrdinalIgnoreCase))
+        {
+            var findType = ParseFindType(options.ClientCertificateFindType);
+            var findValue = NormalizeFindValue(findType, options.ClientCertificateFindValue);
+            client.ClientCredentials.ClientCertificate.SetCertificate(
+                ParseStoreLocation(options.ClientCertificateStoreLocation),
+                ParseStoreName(options.ClientCertificateStoreName),
+                findType,
+                findValue);
+            return;
+        }
+
+        if (string.Equals(options.ClientCertificateSource, "File", StringComparison.OrdinalIgnoreCase))
+        {
+            client.ClientCredentials.ClientCertificate.Certificate = LoadClientCertificate(options);
+            return;
+        }
+
+        throw new InvalidOperationException("Unsupported client certificate source.");
+    }
+
+    public static X509Certificate2 LoadClientCertificate(NetTcpWcfClientOptions options)
+    {
+        var extension = System.IO.Path.GetExtension(options.ClientCertificateFilePath);
+        if (!string.Equals(extension, ".pfx", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(extension, ".p12", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Client certificate files must be .pfx or .p12.");
+        }
+
+        var certificate = new X509Certificate2(options.ClientCertificateFilePath, GetCertificatePassword(options), X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet);
+        if (!certificate.HasPrivateKey)
+        {
+            throw new InvalidOperationException("The configured client certificate does not contain a private key.");
+        }
+
+        return certificate;
+    }
+
+    public static string GetCertificatePassword(NetTcpWcfClientOptions options)
+    {
+        if (string.Equals(options.ClientCertificateFilePasswordSource, "None", StringComparison.OrdinalIgnoreCase)) return null;
+        if (string.Equals(options.ClientCertificateFilePasswordSource, "EnvironmentVariable", StringComparison.OrdinalIgnoreCase)) return Environment.GetEnvironmentVariable(options.ClientCertificateFilePasswordEnvironmentVariableName);
+        if (string.Equals(options.ClientCertificateFilePasswordSource, "AppSettingName", StringComparison.OrdinalIgnoreCase)) return ConfigurationManager.AppSettings[options.ClientCertificateFilePasswordAppSettingName];
+        throw new InvalidOperationException("Unsupported client certificate password source.");
+    }
+
+    public static StoreLocation ParseStoreLocation(string value) => (StoreLocation)Enum.Parse(typeof(StoreLocation), value, true);
+    public static StoreName ParseStoreName(string value) => (StoreName)Enum.Parse(typeof(StoreName), value, true);
+    public static X509FindType ParseFindType(string value) => (X509FindType)Enum.Parse(typeof(X509FindType), value, true);
+    public static string NormalizeFindValue(X509FindType findType, string value) => findType == X509FindType.FindByThumbprint ? NormalizeThumbprint(value) : (value ?? string.Empty).Trim();
+    public static string NormalizeThumbprint(string value) => (value ?? string.Empty).Replace(" ", string.Empty).Replace("\u200e", string.Empty).Trim();
+
+    public void CloseOrAbort(ICommunicationObject client)
+    {
+        try { if (client.State != CommunicationState.Faulted) client.Close(); else client.Abort(); }
+        catch { client.Abort(); }
+    }
+}
+""").ToString();
+    }
     private async Task<IReadOnlyList<GenerationDiagnostic>> WriteLibraryAsync(
         string libraryDirectory,
         string libraryNamespace,

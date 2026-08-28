@@ -205,7 +205,7 @@
                     </Grid>
                     <TextBox Header="Certificate find value" Text="{Binding ClientCertificateFindValue, Mode=TwoWay}" Visibility="{Binding IsCertificateStoreSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <StackPanel Spacing="6" Visibility="{Binding IsCertificateFileSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <TextBox Header="Certificate file path (.pfx, .p12, .cer, .crt)" Text="{Binding ClientCertificateFilePath, Mode=TwoWay}" />
+                        <TextBox Header="Certificate file path (.pfx or .p12)" Text="{Binding ClientCertificateFilePath, Mode=TwoWay}" />
                         <ComboBox Header="Certificate password source" ItemsSource="{Binding CertificatePasswordSources}" SelectedItem="{Binding ClientCertificateFilePasswordSource, Mode=TwoWay}" />
                         <TextBox Header="Password environment variable name" Text="{Binding ClientCertificateFilePasswordEnvironmentVariableName, Mode=TwoWay}" />
                         <TextBox Header="Password app setting name" Text="{Binding ClientCertificateFilePasswordAppSettingName, Mode=TwoWay}" />
