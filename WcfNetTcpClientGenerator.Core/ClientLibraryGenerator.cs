@@ -163,8 +163,8 @@ public sealed class ClientLibraryGenerator
     {
         var diagnostics = new List<GenerationDiagnostic>();
         Directory.CreateDirectory(Path.Combine(directory, "App_Start")); Directory.CreateDirectory(Path.Combine(directory, "Controllers")); Directory.CreateDirectory(Path.Combine(directory, "Wcf")); Directory.CreateDirectory(Path.Combine(directory, "Models"));
-        await File.WriteAllTextAsync(projectFile, _projectFileGenerator.Generate(ns, options, metadata), ct);
-        await File.WriteAllTextAsync(Path.Combine(directory, "Web.config"), GenerateWebConfig(options), ct);
+        diagnostics.AddRange(await WriteFormattedXmlAsync(projectFile, _projectFileGenerator.Generate(ns, options, metadata), ct).ConfigureAwait(false));
+        diagnostics.AddRange(await WriteFormattedXmlAsync(Path.Combine(directory, "Web.config"), GenerateWebConfig(options), ct).ConfigureAwait(false));
         await File.WriteAllTextAsync(Path.Combine(directory, "Global.asax"), $"<%@ Application Codebehind=\"Global.asax.cs\" Inherits=\"{ns}.WebApiApplication\" Language=\"C#\" %>", ct);
         await File.WriteAllTextAsync(Path.Combine(directory, "Global.asax.cs"), $"using System.Web.Http; namespace {ns} {{ public class WebApiApplication : System.Web.HttpApplication {{ protected void Application_Start() {{ GlobalConfiguration.Configure(App_Start.WebApiConfig.Register); }} }} }}", ct);
         await File.WriteAllTextAsync(Path.Combine(directory, "App_Start", "WebApiConfig.cs"), GenerateWebApiConfig(ns), ct);
@@ -229,6 +229,18 @@ public sealed class ClientLibraryGenerator
 
         return diagnostics;
     }
+
+    internal static async Task<IReadOnlyList<GenerationDiagnostic>> WriteFormattedXmlAsync(string filePath, string xml, CancellationToken cancellationToken)
+    {
+        var formatted = GeneratedXmlFormatter.Format(xml);
+        if (formatted.Xml is null)
+        {
+            return [new GenerationDiagnostic(DiagnosticSeverity.Error, $"Generated XML syntax validation failed for {Path.GetFileName(filePath)}: {formatted.Error}", "GENERATED_XML_SYNTAX_ERROR")];
+        }
+
+        await File.WriteAllTextAsync(filePath, formatted.Xml, cancellationToken).ConfigureAwait(false);
+        return [];
+    }
     private static string GenerateRestReadme(string ns, WcfServiceMetadataModel metadata, bool enableSwagger)
     {
         var routes = metadata.Contracts.SelectMany(c => c.Operations.Select(o => "- POST /api/" + RestControllerGenerator.ToRoute(c.ContractName.Replace("Service", "")) + "/" + RestControllerGenerator.ToRoute(o.OperationName) + " -> " + c.ClientClassName + "." + o.ProxyMethodName));
@@ -272,7 +284,7 @@ public sealed class ClientLibraryGenerator
         Directory.CreateDirectory(bindingDirectory);
         Directory.CreateDirectory(diDirectory);
 
-        await File.WriteAllTextAsync(projectFilePath, _projectFileGenerator.Generate(libraryNamespace, options), cancellationToken).ConfigureAwait(false);
+        diagnostics.AddRange(await WriteFormattedXmlAsync(projectFilePath, _projectFileGenerator.Generate(libraryNamespace, options), cancellationToken).ConfigureAwait(false));
         await File.WriteAllTextAsync(Path.Combine(optionsDirectory, "NetTcpWcfClientOptions.cs"), GenerateOptionsClass(libraryNamespace, options), cancellationToken).ConfigureAwait(false);
         await File.WriteAllTextAsync(Path.Combine(bindingDirectory, "NetTcpBindingFactory.cs"), _bindingFactoryGenerator.Generate(libraryNamespace, options), cancellationToken).ConfigureAwait(false);
         await File.WriteAllTextAsync(Path.Combine(diDirectory, "ServiceCollectionExtensions.cs"), GenerateServiceCollectionExtensions(libraryNamespace, metadata), cancellationToken).ConfigureAwait(false);
