@@ -1,125 +1,216 @@
 # WCF Net.TCP Client Generator
 
-`WcfNetTcpClientGenerator` is a WinUI 3 desktop application and .NET 10 solution for analyzing existing WCF `net.tcp` services. It can generate either a reusable .NET 10 client library or an IIS-hosted .NET Framework 4.8 ASP.NET Web API 2 REST wrapper.
+`WcfNetTcpClientGenerator` is a Windows desktop application for analyzing existing WCF `net.tcp` services and generating modern integration code from their metadata.
+
+The solution supports two primary output modes:
+
+1. A reusable **.NET 10 WCF client library**.
+2. A classic **.NET Framework 4.8.1 ASP.NET Web API 2 REST wrapper** that exposes a WCF `net.tcp` service through JSON HTTP endpoints and Swagger.
+
+The REST-wrapper path has been validated end-to-end against a live .NET Framework WCF `net.tcp` service using MEX metadata, generated proxy code, IIS Express, Swagger, and live REST-to-WCF calls.
+
+## Architecture
+
+```text
+Existing WCF net.tcp service
+        |
+        |  MEX / WSDL / XSD metadata
+        v
+WcfNetTcpClientGenerator
+        |
+        +------------------------------+
+        |                              |
+        v                              v
+.NET 10 client library        .NET Framework 4.8.1
+                              ASP.NET Web API 2 wrapper
+                                      |
+                                      v
+                                 Swagger / JSON REST
+                                      |
+                                      v
+                              Generated WCF proxy
+                                      |
+                                      v
+                              Original net.tcp service
+```
 
 ## Features
 
-- Analyze WCF metadata from a `net.tcp` endpoint, explicit MEX URL, WSDL file, or a folder containing WSDL/XSD documents
-- Generate a standalone client library with proxy code, wrapper services, options, binding helpers, dependency injection extensions, and package-ready project metadata
-- Generate a .NET Framework 4.8 Web API 2 wrapper with JSON endpoints, Web.config-driven net.tcp settings, controllers, and safe WCF channel cleanup
-- Package the generated library as a NuGet package from the desktop app
-- Preflight-check `dotnet-svcutil` before proxy generation and surface diagnostics in the UI
-- Support `dotnet-svcutil` discovery from:
-  - a user-specified executable path
-  - the global `dotnet-svcutil` command
-  - `%USERPROFILE%\.dotnet\tools\dotnet-svcutil.exe`
-  - a local tool manifest with `dotnet tool restore` and `dotnet tool run`
-- Log the exact proxy-generation command, working directory, exit code, standard output, and standard error
-- Add XML documentation comments with:
-  - local fallback generation
+- Analyze WCF metadata from:
+  - a `net.tcp` service endpoint
+  - an explicit MEX endpoint
+  - a WSDL file
+  - a folder containing WSDL/XSD metadata
+- Discover service contracts and operations before generation.
+- Generate a standalone .NET 10 WCF client library with:
+  - generated WCF proxy code
+  - wrapper interfaces and services
+  - binding helpers
+  - runtime options
+  - dependency-injection extensions
+  - package-ready project metadata
+- Generate a .NET Framework 4.8.1 ASP.NET Web API 2 REST wrapper with:
+  - JSON API controllers
+  - generated WCF proxy code
+  - Swagger / Swashbuckle documentation
+  - Web.config-driven WCF runtime settings
+  - Web API and Newtonsoft.Json assembly binding redirects
+  - safe WCF channel close/abort handling
+  - safe REST error payloads
+- Support WCF `NetTcpBinding` security modes:
+  - `None`
+  - `Transport`
+  - `Message`
+  - `TransportWithMessageCredential`
+- Support transport and message credential types including:
+  - `None`
+  - `Windows`
+  - `Certificate`
+  - `UserName` where supported
+- Support reliable sessions when enabled by the source service configuration.
+- Support client certificate configuration from:
+  - the Windows certificate store
+  - `.pfx` / `.p12` files containing a private key
+- Support certificate password sources without embedding the actual password in generated configuration:
+  - no password
+  - environment variable
+  - named application setting
+- Format and syntax-check generated C# using Roslyn.
+- Format and validate generated XML files such as `Web.config` and `.csproj`.
+- Normalize AI-generated XML documentation before inserting it into generated C#.
+- Reject malformed generated C# or XML with explicit generation diagnostics.
+- Package generated .NET 10 client libraries as NuGet packages.
+- Preflight-check `dotnet-svcutil` and display command diagnostics in the UI.
+- Support XML documentation generation through:
+  - deterministic local fallback comments
   - Microsoft 365 Copilot
   - OpenAI
-- Test `dotnet-svcutil`, Copilot, and OpenAI connectivity from the app
-- Clear the displayed status/progress history without clearing inputs, detected operations, output paths, or disk logs
 
 ## Projects
 
-- `WcfNetTcpClientGenerator.App`
-  - WinUI 3 desktop application
-  - Collects service settings, runs metadata analysis, generates the library, and packages NuGet output
-- `WcfNetTcpClientGenerator.Core`
-  - Core generation engine
-  - Handles metadata discovery, `dotnet-svcutil` execution, wrapper generation, project generation, packaging, and AI-assisted documentation
-- `WcfNetTcpClientGenerator.Tests`
-  - NUnit test project
-  - Covers generator logic, tool detection, command construction, error handling, and view model behavior
+### `WcfNetTcpClientGenerator.App`
+
+WinUI 3 desktop application responsible for:
+
+- collecting service and generation settings
+- metadata analysis
+- generation workflow
+- tool connectivity checks
+- AI documentation configuration
+- NuGet packaging
+
+### `WcfNetTcpClientGenerator.Core`
+
+Core generation engine responsible for:
+
+- metadata discovery
+- `dotnet-svcutil` execution
+- proxy generation
+- WCF binding generation
+- REST controller generation
+- .NET Framework Web API project generation
+- generated C# formatting and syntax validation
+- generated XML formatting and validation
+- certificate configuration
+- documentation generation
+
+### `WcfNetTcpClientGenerator.Tests`
+
+NUnit test project covering generator behavior, project generation, documentation safety, XML formatting, certificate handling, binding configuration, and regression scenarios.
 
 ## Prerequisites
 
-- Windows with WinUI 3 support
-- .NET 10 SDK
-- Visual Studio 2022 or later for the full desktop development experience
-- `dotnet-svcutil` available in one of the supported locations if you want proxy generation
+### Parser application
 
-Global install example:
+- Windows
+- .NET 10 SDK
+- Visual Studio 2022 or later for the full WinUI development experience
+- `dotnet-svcutil` when generating WCF proxies
+
+Install `dotnet-svcutil` globally with:
 
 ```powershell
 dotnet tool install --global dotnet-svcutil
 ```
 
-If the global tool is installed but not visible to the WinUI process, you can either add `%USERPROFILE%\.dotnet\tools` to `PATH` or browse to `dotnet-svcutil.exe` in the app.
+The application searches for `dotnet-svcutil` in the following order:
 
-## Running the App
+1. User-configured executable path.
+2. Global `dotnet-svcutil` command.
+3. `%USERPROFILE%\.dotnet\tools\dotnet-svcutil.exe`.
+4. A local .NET tool manifest.
 
-1. Build the solution:
+### Generated .NET Framework 4.8.1 REST wrapper
+
+To build and run the generated REST wrapper you need:
+
+- .NET Framework 4.8.1 Developer Pack / targeting pack
+- Visual Studio 2022 MSBuild or equivalent .NET Framework-capable MSBuild
+- IIS or IIS Express for local hosting
+
+## Build the Parser
 
 ```powershell
 dotnet build WcfNetTcpClientGenerator.sln
 ```
 
-2. Start `WcfNetTcpClientGenerator.App`.
-3. Enter the WCF `net.tcp://...` service endpoint.
-4. Optionally provide a metadata URL, WSDL file path, metadata folder, or explicit `dotnet-svcutil` path.
-5. Click **Test dotnet-svcutil** to verify which tool location and execution mode will be used.
-6. Click **Analyze Service Metadata** to inspect detected operations.
-7. Optionally enable AI-assisted XML comments.
-8. Click **Generate Class Library** to create the client library.
-9. Click **Package Class Library as NuGet** to produce a `.nupkg`.
+Run the tests:
 
-The **Clear Status** button only clears the displayed status/progress history. It does not cancel work, clear the operation list, remove generated files, or delete logs from disk.
+```powershell
+dotnet test WcfNetTcpClientGenerator.Tests\WcfNetTcpClientGenerator.Tests.csproj
+```
+
+## Running the Application
+
+1. Start `WcfNetTcpClientGenerator.App`.
+2. Enter the WCF service endpoint, for example:
+
+   ```text
+   net.tcp://server:9001/PatientProcessing
+   ```
+
+3. Enter or discover the metadata endpoint, for example:
+
+   ```text
+   net.tcp://server:9001/PatientProcessing/mex
+   ```
+
+4. Configure the service namespace and output folder.
+5. Select the generated output type:
+   - WCF client library (.NET 10)
+   - REST API wrapper for WCF net.tcp (.NET Framework 4.8.1)
+6. Configure WCF security, credentials, reliable sessions, timeouts, and message-size settings.
+7. Click **Test dotnet-svcutil** if needed.
+8. Click **Analyze Service Metadata** to inspect discovered operations.
+9. Optionally enable AI-assisted XML documentation.
+10. Generate the selected output.
 
 ## Metadata Discovery
 
-`net.tcp` services do not automatically expose `?wsdl`, so the app supports several discovery paths:
+WCF `net.tcp` services do not automatically expose `?wsdl`, so metadata must be available through MEX, WSDL, or local metadata files.
 
-- Explicit MEX URL such as `http://server:808/MyService/mex`
-- Direct WSDL file input
-- Folder input containing WSDL and XSD documents
-- Common MEX probing patterns derived from the service endpoint
+Supported discovery methods include:
 
-If metadata cannot be resolved, the app reports that the service must expose metadata through MEX, HTTP WSDL, or local WSDL/XSD files.
+- explicit MEX URL
+- service endpoint with common MEX probing patterns
+- direct WSDL file
+- folder containing WSDL/XSD documents
 
-## dotnet-svcutil Detection
+For example:
 
-Before proxy generation, the app runs a preflight check and tries `dotnet-svcutil` in this order:
+```text
+Service endpoint:
+net.tcp://localhost:9001/PatientProcessing
 
-1. User-configured executable path
-2. Global command: `dotnet-svcutil --help`
-3. Windows global tool path: `%USERPROFILE%\.dotnet\tools\dotnet-svcutil.exe`
-4. Local tool manifest containing `dotnet-svcutil`
-
-If a local manifest is found and contains `dotnet-svcutil`, the app restores it with `dotnet tool restore` and then runs:
-
-```powershell
-dotnet tool run dotnet-svcutil -- [arguments]
+MEX endpoint:
+net.tcp://localhost:9001/PatientProcessing/mex
 ```
 
-Supported proxy-generation command shape includes:
+When a metadata endpoint ends in `/mex` and no explicit runtime service endpoint is supplied, the REST-wrapper generator can derive the runtime endpoint by removing the trailing `/mex` segment.
 
-```powershell
-dotnet-svcutil net.tcp://server:port/ServiceName/mex -n *,GeneratedNamespace -o GeneratedProxy.cs
-```
+## Generated .NET 10 Client Library
 
-The generator uses equivalent arguments and also sets the output directory, serializer, target framework, and verbosity.
-
-## AI-Assisted XML Documentation
-
-The app supports three documentation modes:
-
-- `Local fallback`
-- `Microsoft 365 Copilot`
-- `OpenAI`
-
-OpenAI can read its API key from:
-
-- the `OPENAI_API_KEY` environment variable
-- a user-entered key stored locally in Windows PasswordVault
-
-Generated wrapper files include a note when AI-assisted comments are used so reviewers can validate the output before publishing.
-
-## Generated Client Library Structure
-
-Each generated client library is written as a standalone `net10.0` project with a structure similar to this:
+A generated client library has a structure similar to:
 
 ```text
 GeneratedLibraryName/
@@ -139,32 +230,220 @@ GeneratedLibraryName/
   README.md
 ```
 
-## Build and Test
+The generated client can then be packaged as a NuGet package from the desktop application.
 
-Build the solution:
+## Generated .NET Framework 4.8.1 REST Wrapper
 
-```powershell
-dotnet build WcfNetTcpClientGenerator.sln
+A generated REST wrapper has a structure similar to:
+
+```text
+GeneratedNetTcpClient/
+  GeneratedNetTcpClient.csproj
+  Web.config
+  Global.asax
+  Global.asax.cs
+  App_Start/
+    WebApiConfig.cs
+    SwaggerConfig.cs
+  Controllers/
+    PatientController.cs
+  Models/
+    RestErrorResponse.cs
+  ServiceReferences/
+    GeneratedProxy.cs
+  Wcf/
+    NetTcpWcfClientOptions.cs
+    NetTcpBindingFactory.cs
+    WcfClientFactory.cs
+  README.md
 ```
 
-Run the test suite:
+The wrapper targets classic ASP.NET Web API 2 and is intended for IIS/IIS Express hosting.
 
-```powershell
-dotnet test WcfNetTcpClientGenerator.Tests\WcfNetTcpClientGenerator.Tests.csproj
+## REST Wrapper Configuration
+
+The generated `Web.config` contains non-secret WCF runtime settings such as:
+
+```xml
+<appSettings>
+  <add key="Wcf:EndpointUrl" value="net.tcp://server:9001/PatientProcessing" />
+  <add key="Wcf:SecurityMode" value="None" />
+  <add key="Wcf:TcpTransportClientCredentialType" value="None" />
+  <add key="Wcf:MessageClientCredentialType" value="None" />
+  <add key="Wcf:ReliableSessionEnabled" value="false" />
+  <add key="Wcf:OpenTimeout" value="00:00:30" />
+  <add key="Wcf:CloseTimeout" value="00:00:30" />
+  <add key="Wcf:SendTimeout" value="00:01:40" />
+  <add key="Wcf:ReceiveTimeout" value="00:01:40" />
+  <add key="Wcf:MaxReceivedMessageSize" value="65536" />
+</appSettings>
 ```
 
-## Consuming the Generated Package
+The generated configuration also includes binding redirects required by the Web API 2 / Swagger dependency set.
 
-After adding the generated NuGet package to another .NET application:
+## Client Certificate Authentication
 
-```csharp
-var options = new NetTcpWcfClientOptions
+Certificate settings are only generated when certificate credentials are selected.
+
+### Windows certificate store
+
+Supported settings include:
+
+```text
+Wcf:ClientCertificateSource=Store
+Wcf:ClientCertificateStoreLocation=CurrentUser
+Wcf:ClientCertificateStoreName=My
+Wcf:ClientCertificateFindType=FindByThumbprint
+Wcf:ClientCertificateFindValue=<thumbprint>
+```
+
+Thumbprints are normalized before lookup. Other find values such as subject or issuer names preserve their embedded spaces.
+
+### PFX / P12 certificate file
+
+Supported file types:
+
+```text
+.pfx
+.p12
+```
+
+The generated runtime code verifies that the loaded certificate contains a private key.
+
+Certificate passwords are not generated directly into `Web.config`. Instead the wrapper can obtain a password from an environment variable or from a named deployment application setting.
+
+## Swagger
+
+When Swagger is enabled, the generated REST wrapper exposes:
+
+```text
+Swagger UI:
+/swagger
+/swagger/ui/index
+
+Swagger JSON:
+/swagger/docs/v1
+```
+
+Example local IIS Express URL:
+
+```text
+http://localhost:8085/swagger
+```
+
+## Build a Generated REST Wrapper
+
+Using Visual Studio 2022 Professional MSBuild:
+
+```powershell
+& "C:\Program Files\Microsoft Visual Studio\2022\Professional\MSBuild\Current\Bin\MSBuild.exe" `
+  "C:\Path\To\GeneratedNetTcpClient\GeneratedNetTcpClient.csproj" `
+  /t:Restore,Build `
+  /p:Configuration=Debug `
+  /p:Platform=AnyCPU
+```
+
+A clean generated wrapper should build with no errors. The validated test path also builds without assembly-binding warnings.
+
+## Run a Generated REST Wrapper with IIS Express
+
+```powershell
+& "C:\Program Files\IIS Express\iisexpress.exe" `
+  /path:"C:\Path\To\GeneratedNetTcpClient" `
+  /port:8085
+```
+
+Then open:
+
+```text
+http://localhost:8085/swagger
+```
+
+A generated controller route may look like:
+
+```text
+POST /api/patient/get-patients
+POST /api/patient/get-patient
+```
+
+## Generated Error Handling
+
+Generated REST endpoints return sanitized errors when an upstream WCF call fails.
+
+Example:
+
+```json
 {
-    EndpointUrl = "net.tcp://server:808/MyService",
-    SecurityMode = "Transport",
-    TcpClientCredentialType = "Windows"
-};
-
-var client = new CustomerServiceClient(options);
-var response = await client.GetCustomerAsync(request);
+  "Error": "The upstream WCF service could not complete the request.",
+  "Code": "wcf-communication",
+  "CorrelationId": "..."
+}
 ```
+
+Raw exception stack traces, certificate passwords, and other secret material are not returned to REST callers.
+
+## Generated Source Validation
+
+Generated C# files are parsed with Roslyn before generation is considered successful.
+
+Malformed generated C# produces a generation error such as:
+
+```text
+GENERATED_CSHARP_SYNTAX_ERROR
+```
+
+Generated XML files are parsed and formatted before being written. Invalid XML produces:
+
+```text
+GENERATED_XML_SYNTAX_ERROR
+```
+
+This prevents malformed generated source or configuration from being silently emitted as successful output.
+
+## AI-Assisted XML Documentation
+
+The parser supports three documentation modes:
+
+- Local fallback
+- Microsoft 365 Copilot
+- OpenAI
+
+OpenAI can read its API key from:
+
+- `OPENAI_API_KEY`
+- a user-entered key stored locally in Windows PasswordVault
+
+Provider-generated documentation is treated as untrusted input. XML documentation is parsed and normalized before it is emitted into generated C# comments, preventing raw provider output from escaping into source code.
+
+## dotnet-svcutil Diagnostics
+
+Before proxy generation, the app can run a preflight check and report:
+
+- executable used
+- command line
+- working directory
+- process exit code
+- standard output
+- standard error
+
+The generated .NET Framework REST-wrapper proxy uses a .NET Framework-compatible target (`net48`) while the generated project itself targets .NET Framework 4.8.1.
+
+## Validation Status
+
+The current REST-wrapper generation path has been validated with:
+
+- parser solution build with no warnings or errors
+- full automated test suite
+- fresh .NET Framework 4.8.1 REST-wrapper generation
+- generated project build with no warnings or errors
+- IIS Express startup
+- Swagger UI startup
+- live `GetPatients` REST call through the generated WCF proxy
+- live `GetPatient` REST call with request data passed through to the WCF service
+
+## Security Notes
+
+- Do not commit WCF usernames/passwords, certificate passwords, API keys, or private certificate files.
+- Prefer environment variables or protected deployment configuration for secrets.
+- Prefer certificate thumbprints when selecting certificates from the Windows certificate store.
+- Review generated REST endpoints before publishing them externally; the generator exposes WCF operations as HTTP endpoints but does not replace application-specific authentication and authorization design.
