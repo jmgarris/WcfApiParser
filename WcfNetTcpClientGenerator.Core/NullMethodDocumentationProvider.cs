@@ -36,8 +36,8 @@ public sealed class NullMethodDocumentationProvider : IMethodDocumentationProvid
             builder.AppendLine("/// <returns>A task that represents the asynchronous WCF call.</returns>");
         }
 
-        builder.AppendLine("/// <exception cref=\"CommunicationException\">Thrown when the WCF service cannot be reached or the channel faults.</exception>");
-        builder.AppendLine("/// <exception cref=\"TimeoutException\">Thrown when the WCF operation exceeds the configured timeout.</exception>");
+        builder.AppendLine("/// <exception cref=\"System.ServiceModel.CommunicationException\">Thrown when the WCF service cannot be reached or the channel faults.</exception>");
+        builder.AppendLine("/// <exception cref=\"System.TimeoutException\">Thrown when the WCF operation exceeds the configured timeout.</exception>");
 
         return Task.FromResult(new MethodDocumentationResult
         {

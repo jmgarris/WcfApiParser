@@ -114,8 +114,16 @@ public sealed class NetTcpBindingFactoryGenerator
         builder.AppendLine();
         builder.AppendLine($"namespace {libraryNamespace}.Binding;");
         builder.AppendLine();
+        builder.AppendLine("/// <summary>");
+        builder.AppendLine("/// Creates net.tcp bindings for generated WCF clients.");
+        builder.AppendLine("/// </summary>");
         builder.AppendLine("public static class NetTcpBindingFactory");
         builder.AppendLine("{");
+        builder.AppendLine("    /// <summary>");
+        builder.AppendLine("    /// Creates a net.tcp binding from the supplied runtime options.");
+        builder.AppendLine("    /// </summary>");
+        builder.AppendLine("    /// <param name=\"options\">The runtime connection and binding settings.</param>");
+        builder.AppendLine("    /// <returns>A configured net.tcp binding.</returns>");
         builder.AppendLine("    public static global::System.ServiceModel.NetTcpBinding Create(NetTcpWcfClientOptions options)");
         builder.AppendLine("    {");
         builder.AppendLine("        var binding = new global::System.ServiceModel.NetTcpBinding");

@@ -42,10 +42,17 @@ public sealed class WrapperImplementationGenerator
         builder.AppendLine();
         builder.AppendLine($"namespace {libraryNamespace}.Services;");
         builder.AppendLine();
+        builder.AppendLine("/// <summary>");
+        builder.AppendLine($"/// Provides WCF operations for the {contract.ContractName} contract.");
+        builder.AppendLine("/// </summary>");
         builder.AppendLine($"public sealed class {className} : {interfaceName}");
         builder.AppendLine("{");
         builder.AppendLine("    private readonly NetTcpWcfClientOptions _options;");
         builder.AppendLine();
+        builder.AppendLine("    /// <summary>");
+        builder.AppendLine($"    /// Initializes a new instance of the {className} class.");
+        builder.AppendLine("    /// </summary>");
+        builder.AppendLine("    /// <param name=\"options\">The runtime connection and binding settings.</param>");
         builder.AppendLine($"    public {className}(NetTcpWcfClientOptions options)");
         builder.AppendLine("    {");
         builder.AppendLine("        _options = options ?? throw new global::System.ArgumentNullException(nameof(options));");

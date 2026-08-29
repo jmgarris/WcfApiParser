@@ -144,6 +144,7 @@ public sealed class GeneratorTests
 
         Assert.That(source, Does.Contain("Task<global::Contoso.Contracts.CustomerResponse> GetCustomer("));
         Assert.That(source, Does.Contain("CancellationToken cancellationToken = default"));
+        Assert.That(source, Does.Contain("/// Provides a strongly typed client").And.Contain("/// <param name=\"cancellationToken\">"));
     }
 
     [Test]
@@ -163,6 +164,8 @@ public sealed class GeneratorTests
             Assert.That(source, Does.Contain("CloseClient(client);"));
             Assert.That(source, Does.Contain("NetTcpBindingFactory.Create(_options)"));
             Assert.That(source, Does.Contain("/// <summary>"));
+            Assert.That(source, Does.Contain("/// Provides WCF operations").And.Contain("/// Initializes a new instance"));
+            Assert.That(source, Does.Contain("System.ServiceModel.CommunicationException").And.Contain("System.TimeoutException"));
             Assert.That(source, Does.Not.Contain("XML documentation comments may have been AI-assisted."));
         });
     }

@@ -78,7 +78,7 @@ public sealed class ClientLibraryGenerator
             Directory.CreateDirectory(proxyDirectory);
 
             var proxyFilePath = Path.Combine(proxyDirectory, "GeneratedProxy.cs");
-            await File.WriteAllTextAsync(proxyFilePath, options.ExistingProxyCode, cancellationToken).ConfigureAwait(false);
+            await File.WriteAllTextAsync(proxyFilePath, AddGeneratedProxyWarningSuppression(options.ExistingProxyCode), cancellationToken).ConfigureAwait(false);
 
             var parsed = ProxyCodeParser.Parse(options.ExistingProxyCode, CSharpIdentifierSanitizer.SanitizeNamespace(options.DiscoveryOptions.ServiceNamespace));
             proxyResult = new ProxyCodeGenerator.ProxyGenerationResult
@@ -113,6 +113,15 @@ public sealed class ClientLibraryGenerator
         }
 
         diagnostics.AddRange(proxyResult.Diagnostics);
+
+        if (options.OutputKind == GeneratedOutputKind.NetTcpClientLibrary && !string.IsNullOrWhiteSpace(proxyResult.ProxyFilePath))
+        {
+            var proxySource = await File.ReadAllTextAsync(proxyResult.ProxyFilePath, cancellationToken).ConfigureAwait(false);
+            if (!proxySource.StartsWith("#pragma warning disable CS1591", StringComparison.Ordinal))
+            {
+                await File.WriteAllTextAsync(proxyResult.ProxyFilePath, AddGeneratedProxyWarningSuppression(proxySource), cancellationToken).ConfigureAwait(false);
+            }
+        }
 
         if (!proxyResult.Success || proxyResult.Metadata is null || string.IsNullOrWhiteSpace(proxyResult.ProxyFilePath))
         {
@@ -479,32 +488,49 @@ public sealed class WcfClientFactory
         return diagnostics;
     }
 
+    private static string AddGeneratedProxyWarningSuppression(string source)
+        => $"#pragma warning disable CS1591{Environment.NewLine}{source.TrimEnd()}{Environment.NewLine}#pragma warning restore CS1591{Environment.NewLine}";
+
     private static string GenerateOptionsClass(string libraryNamespace, ClientLibraryGenerationOptions options)
         => $$"""
 namespace {{libraryNamespace}}.Options;
 
+/// <summary>
+/// Defines runtime connection and binding settings for generated net.tcp WCF clients.
+/// </summary>
 public sealed class NetTcpWcfClientOptions
 {
+    /// <summary>Gets or sets the WCF service endpoint address.</summary>
     public string EndpointUrl { get; set; } = string.Empty;
 
+    /// <summary>Gets or sets the WCF security mode.</summary>
     public string SecurityMode { get; set; } = "{{options.SecurityMode}}";
 
+    /// <summary>Gets or sets the TCP client credential type.</summary>
     public string TcpClientCredentialType { get; set; } = "{{options.TcpClientCredentialType}}";
 
+    /// <summary>Gets or sets whether reliable sessions are enabled.</summary>
     public bool ReliableSessionEnabled { get; set; } = {{options.ReliableSessionEnabled.ToString().ToLowerInvariant()}};
 
+    /// <summary>Gets or sets the channel open timeout.</summary>
     public global::System.TimeSpan OpenTimeout { get; set; } = global::System.TimeSpan.Parse("{{options.OpenTimeout}}");
 
+    /// <summary>Gets or sets the channel close timeout.</summary>
     public global::System.TimeSpan CloseTimeout { get; set; } = global::System.TimeSpan.Parse("{{options.CloseTimeout}}");
 
+    /// <summary>Gets or sets the channel send timeout.</summary>
     public global::System.TimeSpan SendTimeout { get; set; } = global::System.TimeSpan.Parse("{{options.SendTimeout}}");
 
+    /// <summary>Gets or sets the channel receive timeout.</summary>
     public global::System.TimeSpan ReceiveTimeout { get; set; } = global::System.TimeSpan.Parse("{{options.ReceiveTimeout}}");
 
+    /// <summary>Gets or sets the maximum received message size.</summary>
     public long MaxReceivedMessageSize { get; set; } = {{options.MaxReceivedMessageSize}};
 
+    /// <summary>Gets or sets the optional user name credential.</summary>
     public string? Username { get; set; }
 
+    /// <summary>Gets or sets the optional password credential.</summary>
     public string? Password { get; set; }
 }
 """;
@@ -519,8 +545,17 @@ public sealed class NetTcpWcfClientOptions
         builder.AppendLine();
         builder.AppendLine($"namespace {libraryNamespace}.DependencyInjection;");
         builder.AppendLine();
+        builder.AppendLine("/// <summary>");
+        builder.AppendLine("/// Registers generated net.tcp WCF clients with a service collection.");
+        builder.AppendLine("/// </summary>");
         builder.AppendLine("public static class ServiceCollectionExtensions");
         builder.AppendLine("{");
+        builder.AppendLine("    /// <summary>");
+        builder.AppendLine("    /// Adds the generated net.tcp WCF clients to the supplied service collection.");
+        builder.AppendLine("    /// </summary>");
+        builder.AppendLine("    /// <param name=\"services\">The service collection to configure.</param>");
+        builder.AppendLine("    /// <param name=\"configure\">Configures the generated client runtime options.</param>");
+        builder.AppendLine("    /// <returns>The supplied service collection.</returns>");
         builder.AppendLine("    public static global::Microsoft.Extensions.DependencyInjection.IServiceCollection AddGeneratedNetTcpClients(");
         builder.AppendLine("        this global::Microsoft.Extensions.DependencyInjection.IServiceCollection services,");
         builder.AppendLine("        global::System.Action<NetTcpWcfClientOptions> configure)");
