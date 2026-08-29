@@ -9,6 +9,19 @@ namespace WcfNetTcpClientGenerator.Tests;
 public sealed class MainViewModelTests
 {
     [Test]
+    public void ClearOperationsCommand_ClearsOnlyDisplayedOperations()
+    {
+        var viewModel = CreateViewModel(new FakeGeneratorWorkflowService());
+        viewModel.Operations.Add(new OperationRow { ContractName = "Patient", OperationName = "GetPatients", Signature = "Task GetPatients()" });
+        viewModel.StatusMessages.Add(new StatusMessage { Severity = "Info", Message = "Metadata analyzed." });
+
+        viewModel.ClearOperationsCommand.Execute(null);
+
+        Assert.That(viewModel.Operations, Is.Empty);
+        Assert.That(viewModel.StatusMessages, Has.Count.EqualTo(1));
+    }
+
+    [Test]
     public void ClearStatusCommand_ClearsOnlyDisplayedStatusState()
     {
         var workflow = new FakeGeneratorWorkflowService();

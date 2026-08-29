@@ -42,6 +42,7 @@ public partial class MainViewModel : ObservableObject
         ClearOpenAiCachedCommentsCommand = new RelayCommand(ClearOpenAiCachedComments);
         RegenerateCommentsCommand = new RelayCommand(RequestCommentRegeneration);
         ClearStatusCommand = new RelayCommand(ClearStatus);
+        ClearOperationsCommand = new RelayCommand(ClearOperations);
     }
 
     public ObservableCollection<OperationRow> Operations { get; } = [];
@@ -123,6 +124,8 @@ public partial class MainViewModel : ObservableObject
     public IRelayCommand RegenerateCommentsCommand { get; }
 
     public IRelayCommand ClearStatusCommand { get; }
+
+    public IRelayCommand ClearOperationsCommand { get; }
 
     [ObservableProperty] public partial string ServiceEndpointUrl { get; set; } = string.Empty;
     [ObservableProperty] public partial string MetadataEndpointUrl { get; set; } = string.Empty;
@@ -380,6 +383,8 @@ public partial class MainViewModel : ObservableObject
         ProgressPercentage = 0;
         UpdateStatusMessages(static statusMessages => statusMessages.Clear());
     }
+
+    private void ClearOperations() => Operations.Clear();
 
     private async Task SignInToCopilotAsync()
     {
