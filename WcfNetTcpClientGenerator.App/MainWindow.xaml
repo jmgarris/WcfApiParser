@@ -1,17 +1,225 @@
-<Window x:Class="WcfNetTcpClientGenerator.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:automation="using:Microsoft.UI.Xaml.Automation" xmlns:local="using:WcfNetTcpClientGenerator.App" Title="WCF API Parser">
-  <Grid x:Name="RootLayout" Padding="24" RowSpacing="16" ColumnSpacing="16">
-    <Grid.Resources><local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/><Style x:Key="CardStyle" TargetType="Border"><Setter Property="Background" Value="{ThemeResource SystemControlBackgroundBaseLowBrush}"/><Setter Property="BorderBrush" Value="{ThemeResource SystemControlForegroundBaseLowBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="16"/></Style></Grid.Resources>
-    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <StackPanel Spacing="4"><TextBlock Text="WCF API Parser" Style="{ThemeResource TitleTextBlockStyle}"/><TextBlock Text="Analyze WCF metadata and generate .NET 10 clients or .NET Framework 4.8.1 REST APIs." TextWrapping="Wrap" Opacity=".75"/></StackPanel>
-    <Grid Grid.Row="1" ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="2*" MinWidth="520"/><ColumnDefinition Width="*" MinWidth="320"/></Grid.ColumnDefinitions>
-      <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Spacing="16">
-        <Border Style="{StaticResource CardStyle}"><StackPanel Spacing="12"><TextBlock Text="Service &amp; Metadata" Style="{ThemeResource SubtitleTextBlockStyle}"/><TextBlock Text="Provide one or more metadata sources to analyze the service." Opacity=".75" TextWrapping="Wrap"/><Grid ColumnSpacing="12" RowSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><TextBox Header="WCF service endpoint URL" Text="{Binding ServiceEndpointUrl, Mode=TwoWay}"/><TextBox Grid.Column="1" Header="Metadata endpoint URL" Text="{Binding MetadataEndpointUrl, Mode=TwoWay}"/><TextBox Grid.Row="1" Header="WSDL file path" Text="{Binding WsdlFilePath, Mode=TwoWay}"/><TextBox Grid.Row="1" Grid.Column="1" Header="Metadata folder path" Text="{Binding MetadataFolderPath, Mode=TwoWay}"/></Grid><Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox Header="dotnet-svcutil path (optional)" Text="{Binding DotNetSvcUtilPath, Mode=TwoWay}"/><Button Grid.Column="1" Content="Browse" Command="{Binding BrowseDotNetSvcUtilPathCommand}"/></Grid></StackPanel></Border>
-        <Border Style="{StaticResource CardStyle}"><StackPanel Spacing="12"><TextBlock Text="Output" Style="{ThemeResource SubtitleTextBlockStyle}"/><ComboBox Header="Generated output type" ItemsSource="{Binding GeneratedOutputKinds}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedGeneratedOutputKind, Mode=TwoWay}"/><Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBox Header="Generated class library/project name" Text="{Binding GeneratedLibraryName, Mode=TwoWay}"/><TextBox Grid.Column="1" Header="Service namespace" Text="{Binding ServiceNamespace, Mode=TwoWay}"/></Grid><Grid ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox Header="Output folder" Text="{Binding OutputFolder, Mode=TwoWay}"/><Button Grid.Column="1" Content="Browse" Command="{Binding BrowseOutputFolderCommand}"/></Grid><Grid ColumnSpacing="12" Visibility="{Binding IsClientLibrarySelected, Converter={StaticResource BooleanToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBox Header="NuGet package ID" Text="{Binding PackageId, Mode=TwoWay}"/><TextBox Grid.Column="1" Header="NuGet package version" Text="{Binding PackageVersion, Mode=TwoWay}"/></Grid><CheckBox Content="Enable Swagger / API documentation" IsChecked="{Binding EnableSwagger, Mode=TwoWay}" Visibility="{Binding IsRestApiWrapperSelected, Converter={StaticResource BooleanToVisibilityConverter}}"/></StackPanel></Border>
-        <Border Style="{StaticResource CardStyle}"><StackPanel Spacing="12"><TextBlock Text="WCF Connection &amp; Security" Style="{ThemeResource SubtitleTextBlockStyle}"/><Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><ComboBox Header="Security mode" ItemsSource="{Binding SecurityModes}" SelectedItem="{Binding SecurityMode, Mode=TwoWay}"/><ComboBox Grid.Column="1" Header="TCP transport credential type" ItemsSource="{Binding TcpCredentialTypes}" SelectedItem="{Binding TcpTransportClientCredentialType, Mode=TwoWay}"/></Grid><ComboBox Header="Message credential type" ItemsSource="{Binding TcpCredentialTypes}" SelectedItem="{Binding MessageClientCredentialType, Mode=TwoWay}" Visibility="{Binding IsMessageCredentialTypeVisible, Converter={StaticResource BooleanToVisibilityConverter}}"/><CheckBox Content="Enable reliable sessions" IsChecked="{Binding ReliableSessionEnabled, Mode=TwoWay}"/><Expander Header="Advanced binding settings"><Grid Padding="0,12,0,0" ColumnSpacing="8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><TextBox Header="Open timeout" Text="{Binding OpenTimeout, Mode=TwoWay}"/><TextBox Grid.Column="1" Header="Send timeout" Text="{Binding SendTimeout, Mode=TwoWay}"/><TextBox Grid.Column="2" Header="Receive timeout" Text="{Binding ReceiveTimeout, Mode=TwoWay}"/><TextBox Grid.Column="3" Header="Max received message size" Text="{Binding MaxReceivedMessageSize, Mode=TwoWay}"/></Grid></Expander><Expander Header="Client certificate" Visibility="{Binding IsCertificateConfigurationVisible, Converter={StaticResource BooleanToVisibilityConverter}}"><StackPanel Padding="0,12,0,0" Spacing="8"><ComboBox Header="Certificate source" ItemsSource="{Binding CertificateSources}" SelectedItem="{Binding ClientCertificateSource, Mode=TwoWay}"/><TextBox Header="Certificate find value" Text="{Binding ClientCertificateFindValue, Mode=TwoWay}"/><TextBox Header="Certificate file path (.pfx or .p12)" Text="{Binding ClientCertificateFilePath, Mode=TwoWay}"/><TextBlock Text="Prefer certificate thumbprints. Do not store certificate passwords in source control or plain configuration." TextWrapping="Wrap" Opacity=".75"/></StackPanel></Expander></StackPanel></Border>
-        <Border Style="{StaticResource CardStyle}"><StackPanel Spacing="12"><TextBlock Text="Documentation" Style="{ThemeResource SubtitleTextBlockStyle}"/><TextBlock Text="Local fallback requires no external AI access." Opacity=".75"/><ComboBox Header="Documentation provider" ItemsSource="{Binding DocumentationProviders}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedDocumentationProvider, Mode=TwoWay}"/><Expander Header="Microsoft 365 Copilot settings" Visibility="{Binding IsCopilotProviderSelected, Converter={StaticResource BooleanToVisibilityConverter}}"><StackPanel Padding="0,12,0,0" Spacing="8"><TextBox Header="Tenant ID" Text="{Binding CopilotTenantId, Mode=TwoWay}"/><TextBox Header="Client ID" Text="{Binding CopilotClientId, Mode=TwoWay}"/><TextBox Header="Required scopes" Text="{Binding CopilotRequiredScopes, Mode=TwoWay}"/><Button Content="Sign in" Command="{Binding SignInToCopilotCommand}"/><Button Content="Test Copilot connection" Command="{Binding TestCopilotConnectionCommand}"/></StackPanel></Expander><Expander Header="OpenAI settings" Visibility="{Binding IsOpenAiProviderSelected, Converter={StaticResource BooleanToVisibilityConverter}}"><StackPanel Padding="0,12,0,0" Spacing="8"><ComboBox Header="API key source" ItemsSource="{Binding OpenAiApiKeySources}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedOpenAiApiKeySource, Mode=TwoWay}"/><TextBox Header="Environment variable name" Text="{Binding OpenAiApiKeyEnvironmentVariableName, Mode=TwoWay}" PlaceholderText="OPENAI_API_KEY"/><PasswordBox Header="API key" PasswordChanged="OpenAiApiKeyPasswordBox_OnPasswordChanged"/><TextBox Header="Model name" Text="{Binding OpenAiModelName, Mode=TwoWay}"/><Button Content="Test OpenAI connection" Command="{Binding TestOpenAiConnectionCommand}"/></StackPanel></Expander></StackPanel></Border>
-      </StackPanel></ScrollViewer>
-      <Grid Grid.Column="1" RowSpacing="16"><Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="*"/></Grid.RowDefinitions><Border Style="{StaticResource CardStyle}"><StackPanel Spacing="10"><TextBlock Text="Detected Operations" Style="{ThemeResource SubtitleTextBlockStyle}"/><TextBlock Text="Analyze service metadata to view detected WCF operations." TextWrapping="Wrap" Opacity=".75"/><ListView ItemsSource="{Binding Operations}"><ListView.ItemTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding ContractName}" FontWeight="SemiBold"/><TextBlock Text="{Binding OperationName}"/><TextBlock Text="{Binding Signature}" TextWrapping="Wrap" Opacity=".75"/></StackPanel></DataTemplate></ListView.ItemTemplate></ListView></StackPanel></Border><Border Grid.Row="1" Style="{StaticResource CardStyle}"><StackPanel Spacing="10"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="Status &amp; Progress" Style="{ThemeResource SubtitleTextBlockStyle}"/><Button Grid.Column="1" Content="Clear status" Command="{Binding ClearStatusCommand}" automation:AutomationProperties.Name="Clear status history"/></Grid><ProgressBar Value="{Binding ProgressPercentage}"/><TextBlock Text="{Binding BusyMessage}" TextWrapping="Wrap"/><ListView ItemsSource="{Binding StatusMessages}"><ListView.ItemTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding Severity}" FontWeight="SemiBold"/><TextBlock Text="{Binding Message}" TextWrapping="Wrap"/></StackPanel></DataTemplate></ListView.ItemTemplate></ListView></StackPanel></Border></Grid>
+﻿<Window x:Class="WcfNetTcpClientGenerator.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:automation="using:Microsoft.UI.Xaml.Automation" xmlns:local="using:WcfNetTcpClientGenerator.App" Title="WCF API Parser">
+    <Grid x:Name="RootLayout" Padding="24" RowSpacing="16" ColumnSpacing="16">
+        <Grid.Resources>
+            <local:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+            <Style x:Key="CardStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource SystemControlBackgroundBaseLowBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource SystemControlForegroundBaseLowBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="16" />
+            </Style>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel Spacing="4">
+            <TextBlock Text="WCF API Parser" Style="{ThemeResource TitleTextBlockStyle}" />
+            <TextBlock Text="Analyze WCF metadata and generate .NET 10 clients or .NET Framework 4.8.1 REST APIs." TextWrapping="Wrap" Opacity=".75" />
+        </StackPanel>
+        <Grid Grid.Row="1" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" MinWidth="520" />
+                <ColumnDefinition Width="*" MinWidth="320" />
+            </Grid.ColumnDefinitions>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="16">
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Service &amp; Metadata" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                            <TextBlock Text="Provide one or more metadata sources to analyze the service." Opacity=".75" TextWrapping="Wrap" />
+                            <Grid ColumnSpacing="12" RowSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBox Header="WCF service endpoint URL" Text="{Binding ServiceEndpointUrl, Mode=TwoWay}" />
+                                <TextBox Grid.Column="1" Header="Metadata endpoint URL" Text="{Binding MetadataEndpointUrl, Mode=TwoWay}" />
+                                <TextBox Grid.Row="1" Header="WSDL file path" Text="{Binding WsdlFilePath, Mode=TwoWay}" />
+                                <TextBox Grid.Row="1" Grid.Column="1" Header="Metadata folder path" Text="{Binding MetadataFolderPath, Mode=TwoWay}" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Header="dotnet-svcutil path (optional)" Text="{Binding DotNetSvcUtilPath, Mode=TwoWay}" />
+                                <Button Grid.Column="1" Content="Browse" Command="{Binding BrowseDotNetSvcUtilPathCommand}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Output" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                            <ComboBox Header="Generated output type" ItemsSource="{Binding GeneratedOutputKinds}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedGeneratedOutputKind, Mode=TwoWay}" />
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Header="Generated class library/project name" Text="{Binding GeneratedLibraryName, Mode=TwoWay}" />
+                                <TextBox Grid.Column="1" Header="Service namespace" Text="{Binding ServiceNamespace, Mode=TwoWay}" />
+                            </Grid>
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Header="Output folder" Text="{Binding OutputFolder, Mode=TwoWay}" />
+                                <Button Grid.Column="1" Content="Browse" Command="{Binding BrowseOutputFolderCommand}" />
+                            </Grid>
+                            <Grid ColumnSpacing="12" Visibility="{Binding IsClientLibrarySelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox Header="NuGet package ID" Text="{Binding PackageId, Mode=TwoWay}" />
+                                <TextBox Grid.Column="1" Header="NuGet package version" Text="{Binding PackageVersion, Mode=TwoWay}" />
+                            </Grid>
+                            <CheckBox Content="Enable Swagger / API documentation" IsChecked="{Binding EnableSwagger, Mode=TwoWay}" Visibility="{Binding IsRestApiWrapperSelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="WCF Connection &amp; Security" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <ComboBox Header="Security mode" ItemsSource="{Binding SecurityModes}" SelectedItem="{Binding SecurityMode, Mode=TwoWay}" />
+                                <ComboBox Grid.Column="1" Header="TCP transport credential type" ItemsSource="{Binding TcpCredentialTypes}" SelectedItem="{Binding TcpTransportClientCredentialType, Mode=TwoWay}" />
+                            </Grid>
+                            <ComboBox Header="Message credential type" ItemsSource="{Binding TcpCredentialTypes}" SelectedItem="{Binding MessageClientCredentialType, Mode=TwoWay}" Visibility="{Binding IsMessageCredentialTypeVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <CheckBox Content="Enable reliable sessions" IsChecked="{Binding ReliableSessionEnabled, Mode=TwoWay}" />
+                            <Expander Header="Advanced binding settings">
+                                <Grid Padding="0,12,0,0" ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Header="Open timeout" Text="{Binding OpenTimeout, Mode=TwoWay}" />
+                                    <TextBox Grid.Column="1" Header="Send timeout" Text="{Binding SendTimeout, Mode=TwoWay}" />
+                                    <TextBox Grid.Column="2" Header="Receive timeout" Text="{Binding ReceiveTimeout, Mode=TwoWay}" />
+                                    <TextBox Grid.Column="3" Header="Max received message size" Text="{Binding MaxReceivedMessageSize, Mode=TwoWay}" />
+                                </Grid>
+                            </Expander>
+                            <Expander Header="Client certificate" Visibility="{Binding IsCertificateConfigurationVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel Padding="0,12,0,0" Spacing="8">
+                                    <ComboBox Header="Certificate source" ItemsSource="{Binding CertificateSources}" SelectedItem="{Binding ClientCertificateSource, Mode=TwoWay}" />
+                                    <TextBox Header="Certificate find value" Text="{Binding ClientCertificateFindValue, Mode=TwoWay}" />
+                                    <TextBox Header="Certificate file path (.pfx or .p12)" Text="{Binding ClientCertificateFilePath, Mode=TwoWay}" />
+                                    <TextBlock Text="Prefer certificate thumbprints. Do not store certificate passwords in source control or plain configuration." TextWrapping="Wrap" Opacity=".75" />
+                                </StackPanel>
+                            </Expander>
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardStyle}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="Documentation" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                            <TextBlock Text="Local fallback requires no external AI access." Opacity=".75" />
+                            <ComboBox Header="Documentation provider" ItemsSource="{Binding DocumentationProviders}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedDocumentationProvider, Mode=TwoWay}" />
+                            <Expander Header="Microsoft 365 Copilot settings" Visibility="{Binding IsCopilotProviderSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel Padding="0,12,0,0" Spacing="8">
+                                    <TextBox Header="Tenant ID" Text="{Binding CopilotTenantId, Mode=TwoWay}" />
+                                    <TextBox Header="Client ID" Text="{Binding CopilotClientId, Mode=TwoWay}" />
+                                    <TextBox Header="Required scopes" Text="{Binding CopilotRequiredScopes, Mode=TwoWay}" />
+                                    <Button Content="Sign in" Command="{Binding SignInToCopilotCommand}" />
+                                    <Button Content="Test Copilot connection" Command="{Binding TestCopilotConnectionCommand}" />
+                                </StackPanel>
+                            </Expander>
+                            <Expander Header="OpenAI settings" Visibility="{Binding IsOpenAiProviderSelected, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel Padding="0,12,0,0" Spacing="8">
+                                    <ComboBox Header="API key source" ItemsSource="{Binding OpenAiApiKeySources}" DisplayMemberPath="Label" SelectedValuePath="Value" SelectedValue="{Binding SelectedOpenAiApiKeySource, Mode=TwoWay}" />
+                                    <TextBox Header="Environment variable name" Text="{Binding OpenAiApiKeyEnvironmentVariableName, Mode=TwoWay}" PlaceholderText="OPENAI_API_KEY" />
+                                    <PasswordBox Header="API key" PasswordChanged="OpenAiApiKeyPasswordBox_OnPasswordChanged" />
+                                    <TextBox Header="Model name" Text="{Binding OpenAiModelName, Mode=TwoWay}" />
+                                    <Button Content="Test OpenAI connection" Command="{Binding TestOpenAiConnectionCommand}" />
+                                </StackPanel>
+                            </Expander>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+            <Grid Grid.Column="1" RowSpacing="16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Border Style="{StaticResource CardStyle}">
+                    <Grid RowSpacing="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Detected Operations" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                            <Button Grid.Column="1" Content="Clear" Command="{Binding ClearOperationsCommand}" automation:AutomationProperties.Name="Clear detected operations" ToolTipService.ToolTip="Clear the displayed detected service operations." />
+                        </Grid>
+                        <TextBlock Grid.Row="1" Text="Analyze service metadata to view detected WCF operations." TextWrapping="Wrap" Opacity=".75" />
+                        <ListView Grid.Row="2" ItemsSource="{Binding Operations}" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding ContractName}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding OperationName}" />
+                                        <TextBlock Text="{Binding Signature}" TextWrapping="Wrap" Opacity=".75" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+                </Border>
+                <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+                    <Grid RowSpacing="10">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Status &amp; Progress" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                            <Button Grid.Column="1" Content="Clear status" Command="{Binding ClearStatusCommand}" automation:AutomationProperties.Name="Clear status history" />
+                        </Grid>
+                        <ProgressBar Grid.Row="1" Value="{Binding ProgressPercentage}" />
+                        <TextBlock Grid.Row="2" Text="{Binding BusyMessage}" TextWrapping="Wrap" />
+                        <ListView Grid.Row="3" ItemsSource="{Binding StatusMessages}" VerticalAlignment="Stretch" HorizontalAlignment="Stretch" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Severity}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+            <Button Content="Test svcutil" Command="{Binding TestDotNetSvcUtilCommand}" />
+            <Button Content="Analyze Metadata" Command="{Binding AnalyzeServiceMetadataCommand}" />
+            <Button Content="{Binding GenerateOutputButtonText}" Command="{Binding GenerateClassLibraryCommand}" Style="{StaticResource AccentButtonStyle}" />
+            <Button Content="Package as NuGet" Command="{Binding PackageClassLibraryCommand}" Visibility="{Binding IsClientLibrarySelected, Converter={StaticResource BooleanToVisibilityConverter}}" />
+        </StackPanel>
     </Grid>
-    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10"><Button Content="Test svcutil" Command="{Binding TestDotNetSvcUtilCommand}"/><Button Content="Analyze Metadata" Command="{Binding AnalyzeServiceMetadataCommand}"/><Button Content="{Binding GenerateOutputButtonText}" Command="{Binding GenerateClassLibraryCommand}" Style="{StaticResource AccentButtonStyle}"/><Button Content="Package as NuGet" Command="{Binding PackageClassLibraryCommand}" Visibility="{Binding IsClientLibrarySelected, Converter={StaticResource BooleanToVisibilityConverter}}"/></StackPanel>
-  </Grid>
 </Window>
