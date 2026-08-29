@@ -1,13 +1,13 @@
-# WCF Net.TCP Client Generator
+# WCF API Parser
 
-`WcfNetTcpClientGenerator` is a Windows desktop application for analyzing existing WCF `net.tcp` services and generating modern integration code from their metadata.
+`WCF API Parser` (`WcfNetTcpClientGenerator`) is a Windows desktop application for analyzing existing WCF `net.tcp` services and generating modern integration code from their metadata.
 
 The solution supports two primary output modes:
 
 1. A reusable **.NET 10 WCF client library**.
 2. A classic **.NET Framework 4.8.1 ASP.NET Web API 2 REST wrapper** that exposes a WCF `net.tcp` service through JSON HTTP endpoints and Swagger.
 
-The REST-wrapper path has been validated end-to-end against a live .NET Framework WCF `net.tcp` service using MEX metadata, generated proxy code, IIS Express, Swagger, and live REST-to-WCF calls.
+Both output paths have been validated end-to-end against a live .NET Framework WCF `net.tcp` service. The .NET 10 path was generated, built, referenced by a .NET 10 console application, and used for live `GetPatients` / `GetPatient` calls. The REST-wrapper path was generated, built, hosted in IIS Express, opened through Swagger, and used for live REST-to-WCF calls.
 
 ## Architecture
 
@@ -16,7 +16,7 @@ Existing WCF net.tcp service
         |
         |  MEX / WSDL / XSD metadata
         v
-WcfNetTcpClientGenerator
+WCF API Parser
         |
         +------------------------------+
         |                              |
@@ -42,6 +42,7 @@ WcfNetTcpClientGenerator
   - a WSDL file
   - a folder containing WSDL/XSD metadata
 - Discover service contracts and operations before generation.
+- Use a two-pane WinUI 3 workflow with card-based configuration, scrollable detected operations, scrollable status/progress history, and independent clear actions.
 - Generate a standalone .NET 10 WCF client library with:
   - generated WCF proxy code
   - wrapper interfaces and services
@@ -180,8 +181,8 @@ dotnet test WcfNetTcpClientGenerator.Tests\WcfNetTcpClientGenerator.Tests.csproj
    - WCF client library (.NET 10)
    - REST API wrapper for WCF net.tcp (.NET Framework 4.8.1)
 6. Configure WCF security, credentials, reliable sessions, timeouts, and message-size settings.
-7. Click **Test dotnet-svcutil** if needed.
-8. Click **Analyze Service Metadata** to inspect discovered operations.
+7. Click **Test svcutil** if needed.
+8. Click **Analyze Metadata** to inspect discovered operations.
 9. Optionally enable AI-assisted XML documentation.
 10. Generate the selected output.
 
@@ -430,12 +431,14 @@ The generated .NET Framework REST-wrapper proxy uses a .NET Framework-compatible
 
 ## Validation Status
 
-The current REST-wrapper generation path has been validated with:
+The current codebase has been validated with:
 
-- parser solution build with no warnings or errors
-- full automated test suite
+- parser solution build with **0 warnings and 0 errors**
+- **77 automated tests passing**
+- fresh .NET 10 client-library generation and build with **0 warnings and 0 errors**
+- live .NET 10 `GetPatients` and `GetPatient` calls against the .NET Framework WCF test service
 - fresh .NET Framework 4.8.1 REST-wrapper generation
-- generated project build with no warnings or errors
+- generated REST-wrapper build with **0 warnings and 0 errors**
 - IIS Express startup
 - Swagger UI startup
 - live `GetPatients` REST call through the generated WCF proxy
