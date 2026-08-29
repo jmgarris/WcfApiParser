@@ -124,32 +124,15 @@ public partial class MainViewModel : ObservableObject
 
     public IRelayCommand ClearStatusCommand { get; }
 
-    [ObservableProperty]
-    private string serviceEndpointUrl = string.Empty;
-
-    [ObservableProperty]
-    private string metadataEndpointUrl = string.Empty;
-
-    [ObservableProperty]
-    private string wsdlFilePath = string.Empty;
-
-    [ObservableProperty]
-    private string metadataFolderPath = string.Empty;
-
-    [ObservableProperty]
-    private string dotNetSvcUtilPath = string.Empty;
-
-    [ObservableProperty]
-    private string serviceNamespace = "Generated.Wcf";
-
-    [ObservableProperty]
-    private string generatedLibraryName = "GeneratedNetTcpClient";
-
-    [ObservableProperty]
-    private GeneratedOutputKind selectedGeneratedOutputKind = GeneratedOutputKind.NetTcpClientLibrary;
-
-    [ObservableProperty]
-    private bool enableSwagger = true;
+    [ObservableProperty] public partial string ServiceEndpointUrl { get; set; } = string.Empty;
+    [ObservableProperty] public partial string MetadataEndpointUrl { get; set; } = string.Empty;
+    [ObservableProperty] public partial string WsdlFilePath { get; set; } = string.Empty;
+    [ObservableProperty] public partial string MetadataFolderPath { get; set; } = string.Empty;
+    [ObservableProperty] public partial string DotNetSvcUtilPath { get; set; } = string.Empty;
+    [ObservableProperty] public partial string ServiceNamespace { get; set; } = "Generated.Wcf";
+    [ObservableProperty] public partial string GeneratedLibraryName { get; set; } = "GeneratedNetTcpClient";
+    [ObservableProperty] public partial GeneratedOutputKind SelectedGeneratedOutputKind { get; set; } = GeneratedOutputKind.NetTcpClientLibrary;
+    [ObservableProperty] public partial bool EnableSwagger { get; set; } = true;
 
     public bool IsRestApiWrapperSelected => SelectedGeneratedOutputKind == GeneratedOutputKind.NetFramework48RestApiWrapper;
 
@@ -175,17 +158,10 @@ public partial class MainViewModel : ObservableObject
         if (value == GeneratedOutputKind.NetFramework48RestApiWrapper) EnableSwagger = true;
     }
 
-    [ObservableProperty]
-    private string packageId = "GeneratedNetTcpClient";
-
-    [ObservableProperty]
-    private string packageVersion = "1.0.0";
-
-    [ObservableProperty]
-    private string outputFolder = string.Empty;
-
-    [ObservableProperty]
-    private string securityMode = "Transport";
+    [ObservableProperty] public partial string PackageId { get; set; } = "GeneratedNetTcpClient";
+    [ObservableProperty] public partial string PackageVersion { get; set; } = "1.0.0";
+    [ObservableProperty] public partial string OutputFolder { get; set; } = string.Empty;
+    [ObservableProperty] public partial string SecurityMode { get; set; } = "Transport";
 
     partial void OnSecurityModeChanged(string value)
     {
@@ -201,122 +177,58 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsMessageCredentialTypeVisible));
     }
 
-    [ObservableProperty]
-    private string tcpClientCredentialType = "Windows";
-
-    [ObservableProperty]
-    private string tcpTransportClientCredentialType = "Windows";
-
-    [ObservableProperty]
-    private string messageClientCredentialType = "None";
+    [ObservableProperty] public partial string TcpClientCredentialType { get; set; } = "Windows";
+    [ObservableProperty] public partial string TcpTransportClientCredentialType { get; set; } = "Windows";
+    [ObservableProperty] public partial string MessageClientCredentialType { get; set; } = "None";
 
     partial void OnTcpTransportClientCredentialTypeChanged(string value) => OnPropertyChanged(nameof(IsCertificateConfigurationVisible));
     partial void OnMessageClientCredentialTypeChanged(string value) => OnPropertyChanged(nameof(IsCertificateConfigurationVisible));
 
-    [ObservableProperty] private string clientCertificateSource = "Store";
-    [ObservableProperty] private string clientCertificateStoreLocation = "CurrentUser";
-    [ObservableProperty] private string clientCertificateStoreName = "My";
-    [ObservableProperty] private string clientCertificateFindType = "FindByThumbprint";
-    [ObservableProperty] private string clientCertificateFindValue = string.Empty;
-    [ObservableProperty] private string clientCertificateFilePath = string.Empty;
-    [ObservableProperty] private string clientCertificateFilePasswordSource = "EnvironmentVariable";
-    [ObservableProperty] private string clientCertificateFilePasswordEnvironmentVariableName = "WCF_CLIENT_CERT_PASSWORD";
-    [ObservableProperty] private string clientCertificateFilePasswordAppSettingName = "Wcf:ClientCertificatePassword";
+    [ObservableProperty] public partial string ClientCertificateSource { get; set; } = "Store";
+    [ObservableProperty] public partial string ClientCertificateStoreLocation { get; set; } = "CurrentUser";
+    [ObservableProperty] public partial string ClientCertificateStoreName { get; set; } = "My";
+    [ObservableProperty] public partial string ClientCertificateFindType { get; set; } = "FindByThumbprint";
+    [ObservableProperty] public partial string ClientCertificateFindValue { get; set; } = string.Empty;
+    [ObservableProperty] public partial string ClientCertificateFilePath { get; set; } = string.Empty;
+    [ObservableProperty] public partial string ClientCertificateFilePasswordSource { get; set; } = "EnvironmentVariable";
+    [ObservableProperty] public partial string ClientCertificateFilePasswordEnvironmentVariableName { get; set; } = "WCF_CLIENT_CERT_PASSWORD";
+    [ObservableProperty] public partial string ClientCertificateFilePasswordAppSettingName { get; set; } = "Wcf:ClientCertificatePassword";
 
     partial void OnClientCertificateSourceChanged(string value) { OnPropertyChanged(nameof(IsCertificateStoreSelected)); OnPropertyChanged(nameof(IsCertificateFileSelected)); }
 
-    [ObservableProperty]
-    private bool reliableSessionEnabled;
+    [ObservableProperty] public partial bool ReliableSessionEnabled { get; set; }
+    [ObservableProperty] public partial string OpenTimeout { get; set; } = "00:00:30";
+    [ObservableProperty] public partial string SendTimeout { get; set; } = "00:01:40";
+    [ObservableProperty] public partial string ReceiveTimeout { get; set; } = "00:01:40";
+    [ObservableProperty] public partial string MaxReceivedMessageSize { get; set; } = "65536";
+    [ObservableProperty] public partial string Username { get; set; } = string.Empty;
+    [ObservableProperty] public partial string Password { get; set; } = string.Empty;
+    [ObservableProperty] public partial string BusyMessage { get; set; } = string.Empty;
+    [ObservableProperty] public partial int ProgressPercentage { get; set; }
+    [ObservableProperty] public partial DocumentationProviderKind SelectedDocumentationProvider { get; set; } = DocumentationProviderKind.LocalFallback;
 
-    [ObservableProperty]
-    private string openTimeout = "00:00:30";
+    [ObservableProperty] public partial string CopilotTenantId { get; set; } = string.Empty;
+    [ObservableProperty] public partial string CopilotClientId { get; set; } = string.Empty;
+    [ObservableProperty] public partial string CopilotRequiredScopes { get; set; } = "Sites.Read.All, Mail.Read, People.Read.All, OnlineMeetingTranscript.Read.All, Chat.Read, ChannelMessage.Read.All, ExternalItem.Read.All";
+    [ObservableProperty] public partial bool CopilotUseInteractiveSignIn { get; set; } = true;
+    [ObservableProperty] public partial bool CopilotDisableWebGrounding { get; set; }
+    [ObservableProperty] public partial bool CacheGeneratedComments { get; set; } = true;
+    [ObservableProperty] public partial string CopilotMaxCommentLength { get; set; } = "600";
+    [ObservableProperty] public partial string CopilotTimeoutSeconds { get; set; } = "30";
+    [ObservableProperty] public partial string CopilotRetryCount { get; set; } = "2";
+    [ObservableProperty] public partial string CopilotStatusText { get; set; } = "Copilot comments are disabled.";
+    [ObservableProperty] public partial string SignedInAccount { get; set; } = string.Empty;
 
-    [ObservableProperty]
-    private string sendTimeout = "00:01:40";
-
-    [ObservableProperty]
-    private string receiveTimeout = "00:01:40";
-
-    [ObservableProperty]
-    private string maxReceivedMessageSize = "65536";
-
-    [ObservableProperty]
-    private string username = string.Empty;
-
-    [ObservableProperty]
-    private string password = string.Empty;
-
-    [ObservableProperty]
-    private string busyMessage = string.Empty;
-
-    [ObservableProperty]
-    private int progressPercentage;
-
-    [ObservableProperty]
-    private DocumentationProviderKind selectedDocumentationProvider = DocumentationProviderKind.LocalFallback;
-
-    [ObservableProperty]
-    private string copilotTenantId = string.Empty;
-
-    [ObservableProperty]
-    private string copilotClientId = string.Empty;
-
-    [ObservableProperty]
-    private string copilotRequiredScopes = "Sites.Read.All, Mail.Read, People.Read.All, OnlineMeetingTranscript.Read.All, Chat.Read, ChannelMessage.Read.All, ExternalItem.Read.All";
-
-    [ObservableProperty]
-    private bool copilotUseInteractiveSignIn = true;
-
-    [ObservableProperty]
-    private bool copilotDisableWebGrounding;
-
-    [ObservableProperty]
-    private bool cacheGeneratedComments = true;
-
-    [ObservableProperty]
-    private string copilotMaxCommentLength = "600";
-
-    [ObservableProperty]
-    private string copilotTimeoutSeconds = "30";
-
-    [ObservableProperty]
-    private string copilotRetryCount = "2";
-
-    [ObservableProperty]
-    private string copilotStatusText = "Copilot comments are disabled.";
-
-    [ObservableProperty]
-    private string signedInAccount = string.Empty;
-
-    [ObservableProperty]
-    private OpenAiApiKeySource selectedOpenAiApiKeySource = OpenAiApiKeySource.EnvironmentVariable;
-
-    [ObservableProperty]
-    private string openAiApiKeyEnvironmentVariableName = "OPENAI_API_KEY";
-
-    [ObservableProperty]
-    private string openAiApiKey = string.Empty;
-
-    [ObservableProperty]
-    private string openAiModelName = "gpt-5.6-luna";
-
-    [ObservableProperty]
-    private string openAiMaxOutputTokens = "600";
-
-    [ObservableProperty]
-    private string openAiReasoningEffort = "none";
-
-    [ObservableProperty]
-    private string openAiTemperature = "0.2";
-
-    [ObservableProperty]
-    private string openAiTimeoutSeconds = "30";
-
-    [ObservableProperty]
-    private string openAiRetryCount = "2";
-
-    [ObservableProperty]
-    private string openAiStatusText = "OpenAI comments are disabled.";
+    [ObservableProperty] public partial OpenAiApiKeySource SelectedOpenAiApiKeySource { get; set; } = OpenAiApiKeySource.EnvironmentVariable;
+    [ObservableProperty] public partial string OpenAiApiKeyEnvironmentVariableName { get; set; } = "OPENAI_API_KEY";
+    [ObservableProperty] public partial string OpenAiApiKey { get; set; } = string.Empty;
+    [ObservableProperty] public partial string OpenAiModelName { get; set; } = "gpt-5.6-luna";
+    [ObservableProperty] public partial string OpenAiMaxOutputTokens { get; set; } = "600";
+    [ObservableProperty] public partial string OpenAiReasoningEffort { get; set; } = "none";
+    [ObservableProperty] public partial string OpenAiTemperature { get; set; } = "0.2";
+    [ObservableProperty] public partial string OpenAiTimeoutSeconds { get; set; } = "30";
+    [ObservableProperty] public partial string OpenAiRetryCount { get; set; } = "2";
+    [ObservableProperty] public partial string OpenAiStatusText { get; set; } = "OpenAI comments are disabled.";
 
     public bool EnableCopilotComments
     {
