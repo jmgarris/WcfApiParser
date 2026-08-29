@@ -50,7 +50,7 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBox Header="dotnet-svcutil path (optional)" Text="{Binding DotNetSvcUtilPath, Mode=TwoWay}" />
-                                <Button Grid.Column="1" Content="Browse" Command="{Binding BrowseDotNetSvcUtilPathCommand}" />
+                                <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Browse" Command="{Binding BrowseDotNetSvcUtilPathCommand}" />
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -72,7 +72,7 @@
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <TextBox Header="Output folder" Text="{Binding OutputFolder, Mode=TwoWay}" />
-                                <Button Grid.Column="1" Content="Browse" Command="{Binding BrowseOutputFolderCommand}" />
+                                <Button Grid.Column="1" VerticalAlignment="Bottom" Content="Browse" Command="{Binding BrowseOutputFolderCommand}" />
                             </Grid>
                             <Grid ColumnSpacing="12" Visibility="{Binding IsClientLibrarySelected, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <Grid.ColumnDefinitions>
